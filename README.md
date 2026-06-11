@@ -1,4 +1,4 @@
-# Sira-Atlas
+# Muslim-Atlas
 
 Deutschsprachige Recherche-Website mit interaktiven Wissenskarten (Mindmaps) zu den
 islamischen Wissensbereichen aus sunnitischer Sicht. Jede Angabe trägt ihre Quelle;

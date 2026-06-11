@@ -18,6 +18,8 @@ export function Layout() {
     { zu: "/quran", text: "Quran" },
     { zu: "/hadith", text: "Hadith" },
     { zu: "/gelehrte", text: "Gelehrte" },
+    { zu: "/hifz", text: "Hifz" },
+    { zu: "/lernen", text: "Lernen" },
     ...(user ? [{ zu: "/notizen", text: "Meine Notizen" }] : []),
     ...(profil?.role === "admin" ? [{ zu: "/admin", text: "Adminportal" }] : []),
   ];
@@ -30,7 +32,7 @@ export function Layout() {
             <svg viewBox="0 0 100 100" className="h-7 w-7" aria-hidden>
               <polygon points="50,5 61,35 95,35 67,55 78,90 50,68 22,90 33,55 5,35 39,35" fill="#D4AF37" />
             </svg>
-            <span className="font-serif text-xl text-gold">Sira-Atlas</span>
+            <span className="font-serif text-xl text-gold">Muslim-Atlas</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -104,7 +106,7 @@ export function Layout() {
 
       <footer className="border-t border-gold/20 py-6 text-center text-sm text-cremedim">
         <p>
-          Sira-Atlas: Kuratierte Daten aus Ibn Hisham, ar-Rahiq al-Makhtum, den sechs Hadith-Sammlungen
+          Muslim-Atlas: Kuratierte Daten aus Ibn Hisham, ar-Rahiq al-Makhtum, den sechs Hadith-Sammlungen
           und dem Quran. Jede Angabe trägt ihre Quelle; externe Prüfung via{" "}
           <a href="https://sunnah.com" target="_blank" rel="noopener noreferrer" className="text-goldhell underline">sunnah.com</a>{" "}
           und{" "}

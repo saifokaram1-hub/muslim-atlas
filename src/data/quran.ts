@@ -234,3 +234,6 @@ export const quranConfig: AtlasConfig = {
 };
 
 export const surenAnzahl = S.length;
+
+// Kompakte Surenliste für Hifz-Bereich und Quiz
+export const surenListe = S.map(([nr, name, arab, verse, typ]) => ({ nr, name, arab, verse, typ }));

@@ -11,6 +11,8 @@ import { Login, Registrieren, PasswortVergessen, PasswortÄndern } from "./pages
 import ProphetenPage from "./pages/ProphetenPage";
 import QuranPage from "./pages/QuranPage";
 import GelehrtePage from "./pages/GelehrtePage";
+import Lernen from "./pages/Lernen";
+import QuranLernen from "./pages/QuranLernen";
 import Notizen from "./pages/Notizen";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -34,6 +36,8 @@ export default function App() {
           <Route path="/propheten" element={<ProphetenPage />} />
           <Route path="/quran" element={<QuranPage />} />
           <Route path="/gelehrte" element={<GelehrtePage />} />
+          <Route path="/lernen" element={<Lernen />} />
+          <Route path="/hifz" element={<QuranLernen />} />
           <Route path="/hadith" element={<HadithÜbersicht />} />
           <Route path="/hadith/:buchId" element={<HadithBuchSeite />} />
           <Route path="/hadith/:buchId/:hadithId" element={<HadithDetail />} />

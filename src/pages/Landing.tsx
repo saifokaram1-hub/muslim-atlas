@@ -4,6 +4,7 @@ import { hadithBücher, hadithe, narratoren } from "../data/hadith";
 import { prophetenConfig } from "../data/propheten";
 import { surenAnzahl } from "../data/quran";
 import { gelehrteConfig } from "../data/gelehrte";
+import { alleFragen } from "../lib/fragen";
 
 function Stern({ klasse }: { klasse?: string }) {
   return (
@@ -53,6 +54,18 @@ const BEREICHE = [
     titel: "Gelehrten-Atlas",
     text: `${gelehrteConfig.nodes.length} Knoten von Abu Hanifa bis Ibn Hajar, filterbar nach Richtung (Athari/Salafi, Ash'ari, Maturidi, Sufi) und Rechtsschule; Debatten fair mit [Khilaf].`,
   },
+  {
+    zu: "/hifz",
+    zeichen: "حفظ",
+    titel: "Quran lesen & auswendig lernen",
+    text: "Der vollständige Qurantext (Hafs an Asim) mit deutscher Übersetzung, Auswendiglern-Abfrage mit Gelb-Orange-Rot-System, persönlichem Lernplan und den zehn Lesarten.",
+  },
+  {
+    zu: "/lernen",
+    zeichen: "تعلم",
+    titel: "Lernen: Quiz & Karteikarten",
+    text: `${alleFragen.length} quellengedeckte Quizfragen aus allen Bereichen, nach Thema und Schwierigkeit wählbar; dazu deine eigene Karteikarten-Sammlung.`,
+  },
 ];
 
 export default function Landing() {
@@ -66,7 +79,7 @@ export default function Landing() {
           <div className="flex justify-center text-gold mb-4">
             <Stern klasse="h-10 w-10 drop-shadow-[0_0_18px_rgba(212,175,55,0.45)]" />
           </div>
-          <h1 className="font-serif text-5xl md:text-7xl gold-text leading-tight">Sira-Atlas</h1>
+          <h1 className="font-serif text-5xl md:text-7xl gold-text leading-tight">Muslim-Atlas</h1>
           <p className="font-arabic text-2xl md:text-3xl text-cremedim mt-3" dir="rtl">
             أطلس السيرة والعلوم الإسلامية
           </p>
@@ -79,7 +92,9 @@ export default function Landing() {
 
         <div className="einblenden einblenden-2 mt-8 flex flex-wrap justify-center gap-x-10 gap-y-3 text-sm">
           <div><span className="text-2xl font-serif text-goldhell">{knotenGesamt}+</span><span className="block text-cremedim">Wissensknoten</span></div>
-          <div><span className="text-2xl font-serif text-goldhell">6</span><span className="block text-cremedim">Wissensbereiche</span></div>
+          <div><span className="text-2xl font-serif text-goldhell">{BEREICHE.length}</span><span className="block text-cremedim">Wissensbereiche</span></div>
+          <div><span className="text-2xl font-serif text-goldhell">{alleFragen.length}</span><span className="block text-cremedim">Quizfragen</span></div>
+          <div><span className="text-2xl font-serif text-goldhell">114</span><span className="block text-cremedim">Suren im Volltext</span></div>
           <div><span className="text-2xl font-serif text-goldhell">100 %</span><span className="block text-cremedim">mit Quellenangabe</span></div>
         </div>
 
@@ -111,7 +126,7 @@ export default function Landing() {
         <div className="ornament mb-8"><Stern /></div>
         <div className="grid md:grid-cols-2 gap-5">
           <div className="karte p-6">
-            <h3 className="font-serif text-xl text-gold">Was ist der Sira-Atlas?</h3>
+            <h3 className="font-serif text-xl text-gold">Was ist der Muslim-Atlas?</h3>
             <p className="text-cremedim mt-2 leading-relaxed text-sm">
               Ein Recherche-Werkzeug zum Verstehen von Zusammenhängen: Statt Listen und Fließtext
               zeigt der Atlas Personen, Ereignisse, Suren, Ketten und Werke als Netz. Jede Karte hat
