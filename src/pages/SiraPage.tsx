@@ -386,6 +386,16 @@ function SiraGraphInnen() {
             </div>
           )}
 
+          {knoten.überliefert !== undefined && (
+            <div>
+              <h3 className="font-semibold text-gold text-sm mb-1">Überlieferungen</h3>
+              <p className="text-sm text-cremedim leading-relaxed">
+                ca. <span className="text-goldhell font-semibold">{knoten.überliefert}</span> Hadithe
+                (klassische Zählung nach Baqi ibn Makhlad; Zählungen variieren je Ausgabe)
+              </p>
+            </div>
+          )}
+
           <div>
             <h3 className="font-semibold text-gold text-sm mb-1">Quellen (extern nachprüfbar)</h3>
             <QuellenListe quellen={knoten.quellen} />

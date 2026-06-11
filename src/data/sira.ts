@@ -28,6 +28,8 @@ export interface SiraNode {
   nähe?: number;
   // Lebens-, Wirkungs- und Reiseorte (Gräber/Legenden gekennzeichnet)
   wirkungsort?: string;
+  // Anzahl überlieferter Hadithe (klassische Zählung nach Baqi ibn Makhlad; variiert je Ausgabe)
+  überliefert?: number;
 }
 
 export interface SiraEdge {
@@ -257,7 +259,59 @@ export const siraNodes: SiraNode[] = [
   { id: "dihya", name: "Dihya al-Kalbi", arabisch: "دحية الكلبي", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, wirkungsort: "Medina, Byzanz (Gesandtschaft), al-Mizza bei Damaskus", daten: "gest. ca. 670", zusammenfassung: "Überbrachte das Einladungsschreiben an Heraclius; galt als von schöner Gestalt; Jibril erschien den Berichten zufolge gelegentlich in seiner Ähnlichkeit.", quellen: ["Bukhari 7", "Muslim 167 (Kontext)"] },
   { id: "hatib", name: "Hatib ibn Abi Balta'a", arabisch: "حاطب بن أبي بلتعة", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, wirkungsort: "Medina, Ägypten (Gesandtschaft zum Muqawqis)", daten: "gest. 650", zusammenfassung: "Badr-Kämpfer und Gesandter zum Muqawqis; seine Warnbrief-Episode vor der Eroberung Mekkas wurde durch Badr-Verdienst vergeben und ist Anlass von Sure 60:1.", quellen: ["Bukhari 3007", "Quran 60:1"] },
   { id: "abdullah-hudhafa", name: "Abdullah ibn Hudhafa", arabisch: "عبد الله بن حذافة", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, wirkungsort: "Medina, Persien (Gesandtschaft zu Chosrau), byzantinische Gefangenschaft, Ägypten", daten: "gest. ca. 653, Ägypten", zusammenfassung: "Überbrachte den Brief an Chosrau II.; blieb später in byzantinischer Gefangenschaft standhaft, sodass Umar rief: \"Es ist die Pflicht jedes Muslims, das Haupt Ibn Hudhafas zu küssen, und ich beginne.\"", quellen: ["Ibn Hisham", "al-Bayhaqi (Bericht der Gefangenschaft)"] },
+
+  // Überlieferer und weitere Sahaba (Schwerpunkt: wer hat wie viel überliefert)
+  { id: "abu-umama", name: "Abu Umama al-Bahili", arabisch: "أبو أمامة الباهلي", kategorie: "gefährte", era: "medina", jahr: 630, nähe: 3, überliefert: 250, wirkungsort: "Medina, Homs (als letzter Sahabi Syriens dort gestorben)", daten: "gest. ca. 86 AH / 705, Homs", zusammenfassung: "Großer Überlieferer und Mahner Syriens; gab das Wissen der Mahn- und Jenseitshadithe an die syrische Schule weiter.", quellen: ["adh-Dhahabi, Siyar", "Ibn Sa'd, Tabaqat"] },
+  { id: "mughira", name: "al-Mughira ibn Shu'ba", arabisch: "المغيرة بن شعبة", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, überliefert: 136, wirkungsort: "Ta'if, Medina, Basra und Kufa (Statthalter)", daten: "gest. ca. 50 AH / 670, Kufa", zusammenfassung: "Aus Thaqif; bei Hudaybiyya an der Seite des Propheten ﷺ; bekannt als einer der klügsten Verhandler der Araber; Überlieferer der Khuff-Wisch-Hadithe.", quellen: ["Bukhari 182", "adh-Dhahabi, Siyar"] },
+  { id: "samura", name: "Samura ibn Jundub", arabisch: "سمرة بن جندب", kategorie: "gefährte", era: "medina", jahr: 627, nähe: 3, überliefert: 123, wirkungsort: "Medina, Basra", daten: "gest. ca. 59 AH / 679, Basra", zusammenfassung: "Als Waisenjunge aufgenommen, bei Uhud zunächst zu jung; Überlieferer u. a. des langen Traum-Hadith des Propheten ﷺ (Bukhari 7047).", quellen: ["Bukhari 7047", "adh-Dhahabi, Siyar"] },
+  { id: "jabir-samura", name: "Jabir ibn Samura", arabisch: "جابر بن سمرة", kategorie: "gefährte", era: "medina", jahr: 630, nähe: 3, überliefert: 146, wirkungsort: "Medina, Kufa", daten: "gest. ca. 74 AH / 693, Kufa", zusammenfassung: "Junger Gefährte; Überlieferer des Hadith der zwölf Anführer aus Quraysh (Muslim 1821) und vieler Gebetsbeschreibungen.", quellen: ["Muslim 1821", "adh-Dhahabi, Siyar"] },
+  { id: "abu-qatada", name: "Abu Qatada al-Ansari", arabisch: "أبو قتادة الأنصاري", kategorie: "ansar", era: "medina", jahr: 626, nähe: 3, überliefert: 170, wirkungsort: "Medina", daten: "gest. ca. 54 AH / 674, Medina", zusammenfassung: "\"Der Reiter des Gesandten Allahs ﷺ\"; rettete auf dem Qarad-Feldzug die Herden; Überlieferer des Jagd- und Gebetszeiten-Wissens.", quellen: ["Bukhari 2914 (Kontext)", "Muslim 681"] },
+  { id: "thawban", name: "Thawban", arabisch: "ثوبان مولى رسول الله ﷺ", kategorie: "gefährte", era: "medina", jahr: 625, nähe: 3, überliefert: 127, wirkungsort: "Medina, Ramla, Homs", daten: "gest. 54 AH / 674, Homs", zusammenfassung: "Freigekaufter und Freigelassener des Propheten ﷺ, der bei ihm blieb wie Familie; Überlieferer u. a. des Hadith \"Die Völker werden sich über euch hermachen wie Esser über eine Schüssel\" (Abu Dawud 4297).", quellen: ["Abu Dawud 4297", "adh-Dhahabi, Siyar"] },
+  { id: "abu-rafi", name: "Abu Rafi", arabisch: "أبو رافع مولى رسول الله ﷺ", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, wirkungsort: "Mekka, Medina", daten: "gest. ca. 40 AH / 660", zusammenfassung: "Freigelassener des Propheten ﷺ (zuvor al-Abbas'); Bote froher Nachrichten im Haushalt des Propheten ﷺ; Stammvater einer Gelehrtenfamilie der Sira-Überlieferung.", quellen: ["Ibn Sa'd, Tabaqat", "adh-Dhahabi, Siyar"] },
+  { id: "zayd-khalid", name: "Zayd ibn Khalid al-Juhani", arabisch: "زيد بن خالد الجهني", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, überliefert: 81, wirkungsort: "Medina, Kufa", daten: "gest. ca. 68 AH / 688", zusammenfassung: "Überlieferer wichtiger Rechts-Hadithe (Fundsachen, Zina-Urteile, Gebet nach Regen: \"Allah sagte: Manche Meiner Diener...\" Bukhari 846).", quellen: ["Bukhari 846", "Bukhari 2436"] },
+  { id: "salama-akwa", name: "Salama ibn al-Akwa", arabisch: "سلمة بن الأكوع", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, überliefert: 77, wirkungsort: "Medina, ar-Rabadha", daten: "gest. 74 AH / 693, Medina", zusammenfassung: "Schnellster Läufer der Gefährten, Held des Qarad-Feldzugs; leistete unter dem Baum von Hudaybiyya den Ridwan-Eid (dreimal).", quellen: ["Muslim 1807", "Bukhari 4169"] },
+  { id: "rafi-khadij", name: "Rafi ibn Khadij", arabisch: "رافع بن خديج", kategorie: "ansar", era: "medina", jahr: 625, nähe: 3, überliefert: 78, wirkungsort: "Medina", daten: "gest. ca. 73 AH / 692, Medina", zusammenfassung: "Junger Ansari (Uhud mit Sondererlaubnis); Hauptüberlieferer der Hadithe über Landpacht und Erntefragen (Muzara'a).", quellen: ["Bukhari 2339", "adh-Dhahabi, Siyar"] },
+  { id: "hakim", name: "Hakim ibn Hizam", arabisch: "حكيم بن حزام", kategorie: "später_konvertit", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Mekka, Medina", daten: "gest. 54 AH / 674 (ca. 120-jährig)", zusammenfassung: "Neffe Khadijas, der Überlieferung nach im Inneren der Ka'ba geboren; 60 Jahre in der Jahiliyya, 60 im Islam; sein Hadith: \"Die obere Hand ist besser als die untere\" (Bukhari 1427).", quellen: ["Bukhari 1427", "adh-Dhahabi, Siyar"] },
+  { id: "abu-sufyan-harith", name: "Abu Sufyan ibn al-Harith", arabisch: "أبو سفيان بن الحارث", kategorie: "später_konvertit", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Mekka, Medina", daten: "gest. ca. 20 AH / 641", zusammenfassung: "Cousin und Milchbruder des Propheten ﷺ, lange Zeit sein Spottdichter; konvertierte kurz vor der Eroberung Mekkas und hielt bei Hunayn standhaft das Maultier des Propheten ﷺ.", quellen: ["Muslim 1775", "Ibn Hisham"] },
+  { id: "amr-abasa", name: "Amr ibn Abasa", arabisch: "عمرو بن عبسة", kategorie: "gefährte", era: "mekka", jahr: 612, nähe: 3, wirkungsort: "Mekka (früh), Gebiet der Sulaym, später Syrien", daten: "gest. nach 35 AH", zusammenfassung: "Kam als einer der Allerersten heimlich nach Mekka (\"Ich war ein Viertel des Islam\"); kehrte auf Anweisung zu seinem Stamm zurück und stieß nach der Hidschra wieder dazu; Überlieferer des großen Gebetszeiten-Hadith (Muslim 832).", quellen: ["Muslim 832", "adh-Dhahabi, Siyar"] },
+  { id: "shaddad", name: "Shaddad ibn Aws", arabisch: "شداد بن أوس", kategorie: "ansar", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Medina, Jerusalem/Palästina (Grab beim Felsendom-Friedhof [Überlieferung])", daten: "gest. 58 AH / 678, Jerusalem", zusammenfassung: "Neffe des Dichters Hassan ibn Thabit; Überlieferer des Sayyid al-Istighfar (Bukhari 6306) und des Ihsan-beim-Schlachten-Hadith (Muslim 1955).", quellen: ["Bukhari 6306", "Muslim 1955"] },
+  { id: "awf-malik", name: "Awf ibn Malik al-Ashja'i", arabisch: "عوف بن مالك الأشجعي", kategorie: "gefährte", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Medina, Syrien (Homs/Damaskus)", daten: "gest. 73 AH / 692, Syrien", zusammenfassung: "Teilnehmer von Khaybar an aufwärts; Überlieferer des Hadith der sechs Zeichen vor der Stunde (Bukhari 3176).", quellen: ["Bukhari 3176", "adh-Dhahabi, Siyar"] },
+  { id: "irbad-sariya", name: "al-Irbad ibn Sariya", arabisch: "العرباض بن سارية", kategorie: "gefährte", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Medina (Ahl as-Suffa), Homs", daten: "gest. ca. 75 AH / 694, Homs", zusammenfassung: "Von den armen Ahl as-Suffa, die in der Moschee lebten; weinte, weil er kein Reittier für Tabuk bekam (9:92 betrifft Männer wie ihn); Überlieferer des großen Sunna-Vermächtnis-Hadith (Abu Dawud 4607 — im Hadith-Atlas mit voller Kette).", quellen: ["Abu Dawud 4607", "Quran 9:92"] },
+  { id: "abu-thalaba", name: "Abu Tha'laba al-Khushani", arabisch: "أبو ثعلبة الخشني", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, wirkungsort: "Medina, Syrien", daten: "gest. ca. 75 AH / 694", zusammenfassung: "Leistete den Ridwan-Eid; Überlieferer der Hadithe über Jagd, Jagdhunde und die Gefäße der Schriftbesitzer (Bukhari 5478).", quellen: ["Bukhari 5478"] },
+  { id: "fadl", name: "al-Fadl ibn Abbas", arabisch: "الفضل بن عباس", kategorie: "gefährte", era: "medina", jahr: 631, nähe: 3, wirkungsort: "Mekka, Medina, Syrien-Feldzug", daten: "gest. ca. 13 bis 18 AH [Khilaf: Ajnadayn oder Pest von Amwas]", zusammenfassung: "Ältester Sohn al-Abbas', Bruder Ibn Abbas'; ritt bei der Abschiedspilgerfahrt hinter dem Propheten ﷺ (Radif) und überlieferte deren Details; half bei der Waschung des Propheten ﷺ.", quellen: ["Bukhari 1513", "Muslim 1218"] },
+  { id: "abdullah-jafar", name: "Abdullah ibn Ja'far", arabisch: "عبد الله بن جعفر", kategorie: "gefährte", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Abessinien (dort geboren), Medina", daten: "geb. in Abessinien; gest. 80 AH / 699, Medina", zusammenfassung: "Erstes muslimisches Kind, das in Abessinien geboren wurde; Sohn Ja'fars; sprichwörtlich großzügig (\"Meer der Freigebigkeit\"); der Prophet ﷺ nahm ihn nach Mu'tah tröstend auf.", quellen: ["Bukhari 4264 (Kontext)", "adh-Dhahabi, Siyar"] },
+  { id: "aqil", name: "Aqil ibn Abi Talib", arabisch: "عقيل بن أبي طالب", kategorie: "später_konvertit", era: "medina", jahr: 629, nähe: 3, wirkungsort: "Mekka, Medina", daten: "gest. ca. 60 AH / 680", zusammenfassung: "Bruder Alis und Ja'fars; Kenner der Genealogie und der Tage der Araber; konvertierte vor der Eroberung Mekkas [Zeitpunkt Khilaf].", quellen: ["adh-Dhahabi, Siyar", "Ibn Sa'd, Tabaqat"] },
+  { id: "umm-hani", name: "Umm Hani bint Abi Talib", arabisch: "أم هانئ بنت أبي طالب", kategorie: "gefährte", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Mekka", daten: "gest. nach 40 AH / 661", zusammenfassung: "Schwester Alis; bei der Eroberung Mekkas bestätigte der Prophet ﷺ ihre Schutzgewährung: \"Wir gewähren Schutz, wem du Schutz gewährt hast, Umm Hani\" (Bukhari 357); nach verbreiteter Überlieferung begann die Nachtreise von ihrem Haus [Khilaf].", quellen: ["Bukhari 357", "Ibn Hisham"] },
+  { id: "asma-umays", name: "Asma bint Umays", arabisch: "أسماء بنت عميس", kategorie: "gefährte", era: "medina", jahr: 628, nähe: 3, wirkungsort: "Mekka, Abessinien (13 Jahre), Medina", daten: "gest. nach 38 AH / 658", zusammenfassung: "\"Die Frau der zwei Auswanderungen\": Hidschra nach Abessinien mit ihrem Mann Ja'far, Rückkehr im Jahr von Khaybar; später Ehefrau Abu Bakrs, danach Alis; der Prophet ﷺ bestätigte den Abessinien-Auswanderern doppelten Lohn (Bukhari 4230).", quellen: ["Bukhari 4230"] },
+  { id: "safiyya-tante", name: "Safiyya bint Abd al-Muttalib", arabisch: "صفية بنت عبد المطلب", kategorie: "familie", era: "medina", jahr: 627, nähe: 2, wirkungsort: "Mekka, Medina", daten: "gest. ca. 20 AH / 641, Medina", zusammenfassung: "Tante des Propheten ﷺ und Mutter az-Zubayrs; tötete beim Grabenkrieg einen feindlichen Späher an der Frauenfestung, als kein Mann da war [Ibn Hisham]; betrauerte Hamza, ihren Vollbruder.", quellen: ["Ibn Hisham", "Ibn Sa'd, Tabaqat"] },
+  { id: "umm-fadl", name: "Umm al-Fadl (Lubaba bint al-Harith)", arabisch: "أم الفضل لبابة", kategorie: "gefährte", era: "mekka", jahr: 614, nähe: 3, wirkungsort: "Mekka, Medina", daten: "gest. vor 35 AH", zusammenfassung: "Frau al-Abbas' und Schwester Maymunas; nach Überlieferung eine der ersten Musliminnen nach Khadija; Mutter von Ibn Abbas und al-Fadl.", quellen: ["Ibn Sa'd, Tabaqat", "adh-Dhahabi, Siyar"] },
+  { id: "umm-atiyya", name: "Umm Atiyya al-Ansariyya", arabisch: "أم عطية الأنصارية", kategorie: "ansar", era: "medina", jahr: 625, nähe: 3, wirkungsort: "Medina, Basra", daten: "gest. nach 50 AH", zusammenfassung: "Begleitete sieben Feldzüge als Pflegerin und Versorgerin; Lehrmeisterin der Totenwaschung: ihr Bericht über die Waschung der Prophetentochter Zaynab ist der Grundlagentext dieses Kapitels (Bukhari 1253).", quellen: ["Bukhari 1253", "Muslim 939"] },
+  { id: "rubayyi", name: "ar-Rubayyi bint Muawwidh", arabisch: "الربيع بنت معوذ", kategorie: "ansar", era: "medina", jahr: 627, nähe: 3, wirkungsort: "Medina", daten: "gest. ca. 70 AH / 690", zusammenfassung: "Junge Ansariyya; der Prophet ﷺ besuchte ihren Hochzeitsmorgen, ließ die Mädchen ihre Lieder singen, stoppte aber die Zeile \"unter uns ist ein Prophet, der das Morgen kennt\" (Bukhari 5147); Tochter des Badr-Helden Muawwidh.", quellen: ["Bukhari 5147"] },
+  { id: "itban", name: "Itban ibn Malik", arabisch: "عتبان بن مالك", kategorie: "ansar", era: "medina", jahr: 624, nähe: 3, wirkungsort: "Medina", daten: "gest. ca. 50 AH / 670", zusammenfassung: "Fast erblindeter Ansari und Badr-Teilnehmer; bat den Propheten ﷺ, in seinem Haus zu beten, um die Stelle als Gebetsplatz zu nehmen — der Bericht enthält das Wort: \"Allah hat dem das Feuer verboten, der La ilaha illallah um Allahs willen sagt\" (Bukhari 425).", quellen: ["Bukhari 425"] },
+  { id: "ukasha", name: "Ukkasha ibn Mihsan", arabisch: "عكاشة بن محصن", kategorie: "gefährte", era: "medina", jahr: 624, nähe: 3, wirkungsort: "Mekka, Medina, Ridda-Feldzug", daten: "gest. 12 AH / 633 (gefallen im Ridda-Krieg)", zusammenfassung: "Badr-Kämpfer; beim Hadith der 70.000, die ohne Abrechnung das Paradies betreten, bat er: \"Bitte Allah, dass ich zu ihnen gehöre\" — \"Du gehörst zu ihnen\" (Bukhari 5705); der Zweite erhielt: \"Ukkasha ist dir zuvorgekommen.\"", quellen: ["Bukhari 5705"] },
+  { id: "abu-lubaba", name: "Abu Lubaba", arabisch: "أبو لبابة", kategorie: "ansar", era: "medina", jahr: 627, nähe: 3, wirkungsort: "Medina", daten: "gest. nach 35 AH", zusammenfassung: "Verriet den Banu Qurayza durch eine Geste die drohende Strafe, bereute sofort und band sich an eine Moscheesäule, bis Allah seine Reue annahm [Ibn Hisham; als Anlass von 8:27 überliefert, Khilaf].", quellen: ["Ibn Hisham", "Tafsir at-Tabari zu 8:27"] },
+  { id: "julaybib", name: "Julaybib", arabisch: "جليبيب", kategorie: "ansar", era: "medina", jahr: 627, nähe: 3, wirkungsort: "Medina", daten: "gefallen auf einem Feldzug", zusammenfassung: "Unscheinbarer, von Menschen übersehener Gefährte, dem der Prophet ﷺ persönlich eine Ehe vermittelte; nach seinem Tod im Feldzug sagte er: \"Er ist von mir, und ich bin von ihm\" und trug ihn auf den eigenen Armen (Muslim 2472).", quellen: ["Muslim 2472"] },
+  { id: "amr-jamuh", name: "Amr ibn al-Jamuh", arabisch: "عمرو بن الجموح", kategorie: "ansar", era: "medina", jahr: 625, nähe: 3, wirkungsort: "Medina, Uhud", daten: "gest. 625, gefallen bei Uhud", zusammenfassung: "Stark hinkender Ansari-Ältester, von der Kampfpflicht befreit; bestand auf Uhud: \"Ich will mit diesem Hinken das Paradies betreten\" — und fiel [Ibn Hisham; vgl. Ahmad].", quellen: ["Ibn Hisham", "Ahmad 22553"] },
+  { id: "sad-rabi", name: "Sa'd ibn ar-Rabi", arabisch: "سعد بن الربيع", kategorie: "ansar", era: "medina", jahr: 624, nähe: 3, wirkungsort: "Medina, Uhud", daten: "gest. 625, gefallen bei Uhud", zusammenfassung: "Der Ansari der berühmten Verbrüderung: bot Abd ar-Rahman ibn Awf die Hälfte seines Besitzes an (Bukhari 3780); starb bei Uhud mit dem Vermächtnis: \"Keine Entschuldigung für euch, wenn dem Propheten ﷺ etwas zustößt, solange ein Auge von euch zuckt.\"", quellen: ["Bukhari 3780", "Ibn Hisham"] },
+  { id: "abu-dujana", name: "Abu Dujana", arabisch: "أبو دجانة", kategorie: "ansar", era: "medina", jahr: 625, nähe: 3, wirkungsort: "Medina, Uhud, Yamama", daten: "gest. 12 AH / 633, gefallen bei Yamama", zusammenfassung: "Erhielt bei Uhud das Schwert des Propheten ﷺ, nachdem er fragte, was sein Recht sei, und es erfüllte; kämpfte mit dem roten Stirnband des Todesmuts (Muslim 2470).", quellen: ["Muslim 2470", "Ibn Hisham"] },
+  { id: "khubayb", name: "Khubayb ibn Adi", arabisch: "خبيب بن عدي", kategorie: "gefährte", era: "medina", jahr: 625, nähe: 3, wirkungsort: "Medina, Mekka (hingerichtet)", daten: "gest. ca. 4 AH / 625", zusammenfassung: "Nach dem Verrat von ar-Raji gefangen und in Mekka hingerichtet; betete als Erster zwei Rak'a vor der Hinrichtung und machte es zur Sunna der Standhaften (Bukhari 3045).", quellen: ["Bukhari 3045"] },
+  { id: "usayd", name: "Usayd ibn Hudayr", arabisch: "أسيد بن حضير", kategorie: "ansar", era: "medina", jahr: 621, nähe: 3, wirkungsort: "Medina", daten: "gest. 20 AH / 641, Medina", zusammenfassung: "Führer der Aws neben Sa'd ibn Mu'adh, konvertierte durch Mus'ab; während seiner nächtlichen Rezitation senkte sich etwas wie eine Lichtwolke: \"Das waren die Engel, die deiner Stimme lauschten\" (Bukhari 5018).", quellen: ["Bukhari 5018", "Ibn Hisham"] },
+  { id: "kab-malik", name: "Ka'b ibn Malik", arabisch: "كعب بن مالك", kategorie: "ansar", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Medina", daten: "gest. ca. 50 AH / 670", zusammenfassung: "Einer der drei Dichter des Propheten ﷺ; sein ehrliches Eingeständnis nach Tabuk und die 50 Tage der Prüfung bis zur Offenbarung seiner Vergebung (9:118) sind einer der bewegendsten Berichte des Sahih (Bukhari 4418).", quellen: ["Bukhari 4418", "Quran 9:118"] },
+  { id: "zayd-arqam", name: "Zayd ibn Arqam", arabisch: "زيد بن أرقم", kategorie: "ansar", era: "medina", jahr: 627, nähe: 3, wirkungsort: "Medina, Kufa", daten: "gest. ca. 66 AH / 686, Kufa", zusammenfassung: "Junger Ansari, der Ibn Ubayys Hetzwort meldete und von Sure al-Munafiqun bestätigt wurde — der Prophet ﷺ sagte: \"Allah hat dich bestätigt, Zayd\" (Bukhari 4900).", quellen: ["Bukhari 4900", "Quran 63:8"] },
+  { id: "abu-barza", name: "Abu Barza al-Aslami", arabisch: "أبو برزة الأسلمي", kategorie: "gefährte", era: "medina", jahr: 630, nähe: 3, wirkungsort: "Medina, Basra, Khurasan-Feldzüge", daten: "gest. ca. 64 AH / 684, Basra", zusammenfassung: "Aslami-Gefährte der späten Medina-Jahre; zog als Lehrer bis nach Basra und in die Khurasan-Feldzüge; Überlieferer der Gebetszeiten-Beschreibung (Bukhari 547).", quellen: ["Bukhari 547", "adh-Dhahabi, Siyar"] },
 ];
+
+// Anzahl überlieferter Hadithe (klassische Zählung nach Baqi ibn Makhlad,
+// dokumentiert bei Ibn Hazm und Ibn al-Jawzi; Zählungen variieren je Ausgabe).
+const UEBERLIEFERT: Record<string, number> = {
+  "abu-hurayra": 5374, "ibn-umar": 2630, anas: 2286, aisha: 2210, "ibn-abbas": 1660,
+  jabir: 1540, "abu-said": 1170, "ibn-masud": 848, "abdullah-amr": 700, umar: 537,
+  ali: 536, "umm-salama": 378, "abu-musa": 360, bara: 305, "abu-dharr": 281,
+  "sad-waqqas": 271, "sahl-saad": 188, ubada: 181, "imran-husayn": 180, "abu-darda": 179,
+  "abu-ayyub": 155, uthman: 146, "abu-bakr": 142, usama: 128, "nu-man": 114,
+  "zayd-thabit": 92, "umm-habiba": 65, "abdurrahman-awf": 65, hafsa: 60, salman: 60,
+  asma: 58, bilal: 44, talha: 38, zubayr: 38,
+};
 
 // Nähe-Stufen für die bereits oben definierten Gefährten (1 = engster Kreis).
 const NAEHE: Record<string, number> = {
@@ -327,6 +381,7 @@ const WIRKUNGSORT: Record<string, string> = {
 for (const n of siraNodes) {
   if (n.nähe === undefined && NAEHE[n.id] !== undefined) n.nähe = NAEHE[n.id];
   if (!n.wirkungsort && WIRKUNGSORT[n.id]) n.wirkungsort = WIRKUNGSORT[n.id];
+  if (n.überliefert === undefined && UEBERLIEFERT[n.id] !== undefined) n.überliefert = UEBERLIEFERT[n.id];
 }
 
 type EdgeTupel = [string, string, EdgeTyp, string?, string?];
@@ -559,6 +614,49 @@ const E: EdgeTupel[] = [
   ["abdullah-hudhafa", "ev-briefe", "teilnahme", "Gesandter zu Chosrau II.", "628"],
   ["imran-husayn", "muhammad", "konvertierte_durch", undefined, "628"],
   ["uqba-amir", "ev-hidschra", "teilnahme", "schloss sich als Hirte an", "622"],
+  // Verbindungen der Überlieferer und weiteren Sahaba
+  ["thawban", "muhammad", "freigelassen_von", "freigekauft und freigelassen; blieb im Haushalt", "ca. 625"],
+  ["abu-rafi", "muhammad", "freigelassen_von", "zuvor Diener al-Abbas'", "ca. 628"],
+  ["hakim", "khadija", "familie", "Neffe"],
+  ["hakim", "muhammad", "konvertierte_durch", "nach 60 Jahren Jahiliyya", "630"],
+  ["abu-sufyan-harith", "muhammad", "familie", "Cousin und Milchbruder"],
+  ["abu-sufyan-harith", "muhammad", "konvertierte_durch", "kurz vor der Eroberung Mekkas", "630"],
+  ["abu-sufyan-harith", "ev-hunayn", "kämpfte_in", "hielt das Maultier des Propheten ﷺ", "630"],
+  ["mughira", "ev-hudaybiyya", "teilnahme", "stand bewaffnet beim Propheten ﷺ", "628"],
+  ["salama-akwa", "ev-hudaybiyya", "teilnahme", "leistete den Ridwan-Eid dreimal", "628"],
+  ["abu-thalaba", "ev-hudaybiyya", "teilnahme", "leistete den Ridwan-Eid", "628"],
+  ["fadl", "abbas", "familie", "Sohn"],
+  ["fadl", "ev-abschied", "teilnahme", "ritt hinter dem Propheten ﷺ (Radif)", "632"],
+  ["abdullah-jafar", "jafar", "familie", "Sohn; geboren in Abessinien"],
+  ["aqil", "abu-talib", "familie", "Sohn"],
+  ["umm-hani", "abu-talib", "familie", "Tochter; Schwester Alis"],
+  ["umm-hani", "ev-fath", "teilnahme", "ihre Schutzgewährung wurde bestätigt (Bukhari 357)", "630"],
+  ["umm-hani", "ev-isra", "teilnahme", "Beginn der Nachtreise von ihrem Haus [Überlieferung, Khilaf]", "621"],
+  ["asma-umays", "jafar", "ehe", "gemeinsame Hidschra nach Abessinien", "vor 615"],
+  ["asma-umays", "ev-abessinien", "teilnahme", "13 Jahre im Asyl", "615"],
+  ["safiyya-tante", "muhammad", "familie", "Tante"],
+  ["safiyya-tante", "zubayr", "familie", "Mutter"],
+  ["safiyya-tante", "hamza", "familie", "Vollbruder"],
+  ["safiyya-tante", "ev-khandaq", "teilnahme", "tötete einen Späher an der Frauenfestung [Ibn Hisham]", "627"],
+  ["umm-fadl", "abbas", "ehe"],
+  ["umm-fadl", "maymuna", "familie", "Schwester"],
+  ["umm-fadl", "ibn-abbas", "familie", "Mutter"],
+  ["rubayyi", "ev-badr", "teilnahme", "Tochter des Badr-Helden Muawwidh (einer der Bezwinger Abu Jahls)", "624"],
+  ["itban", "ev-badr", "kämpfte_in", undefined, "624"],
+  ["ukasha", "ev-badr", "kämpfte_in", undefined, "624"],
+  ["abu-lubaba", "ev-qurayza", "teilnahme", "Geste, Reue und Bindung an die Säule", "627"],
+  ["amr-jamuh", "ev-uhud", "gefallen_in", "\"mit diesem Hinken ins Paradies\"", "625"],
+  ["sad-rabi", "ev-uhud", "gefallen_in", "Vermächtnis an die Ansar", "625"],
+  ["sad-rabi", "abdurrahman-awf", "teilnahme", "Verbrüderung (Mu'akhat): bot die Hälfte seines Besitzes (Bukhari 3780)", "622"],
+  ["abu-dujana", "ev-uhud", "kämpfte_in", "kämpfte mit dem Schwert des Propheten ﷺ", "625"],
+  ["usayd", "musab", "konvertierte_durch", "gemeinsam mit Sa'd ibn Mu'adh", "621"],
+  ["usayd", "ev-aqaba2", "teilnahme", undefined, "622"],
+  ["kab-malik", "ev-tabuk", "teilnahme", "einer der drei Zurückgebliebenen (9:118)", "630"],
+  ["zayd-arqam", "abdullah-ubayy", "gegner_von", "meldete dessen Hetzwort; von Sure 63 bestätigt", "627"],
+  ["abu-qatada", "ev-khaybar", "kämpfte_in", undefined, "628"],
+  ["samura", "ev-khandaq", "kämpfte_in", "als Jugendlicher zugelassen", "627"],
+  ["rafi-khadij", "ev-uhud", "kämpfte_in", "mit Sondererlaubnis als Junge", "625"],
+  ["irbad-sariya", "ev-tabuk", "teilnahme", "weinte ohne Reittier (9:92)", "630"],
 ];
 
 export const siraEdges: SiraEdge[] = E.map(([von, nach, typ, notiz, datum], i) => ({
