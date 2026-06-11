@@ -95,6 +95,16 @@ input[type="range"] {
   accent-color: var(--color-gold);
 }
 
+/* 3D-Kippeffekt fuer Mindmap-Knoten */
+.knoten3d {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transform-style: preserve-3d;
+}
+.knoten3d:hover {
+  transform: perspective(600px) rotateX(8deg) rotateY(-6deg) scale(1.07);
+  box-shadow: 0 16px 34px -10px rgba(212, 175, 55, 0.4), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
 .eingabe {
   width: 100%;
   background: var(--color-grund);

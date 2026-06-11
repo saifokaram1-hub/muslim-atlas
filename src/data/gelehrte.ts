@@ -183,6 +183,7 @@ export const gelehrteConfig: AtlasConfig = {
   jahrLabel: "Zeitraum (n. Chr.)",
   jahrAnzeigen: true,
   suchPlatzhalter: "Suche: Gelehrter, Werk, Debatte (z. B. Ibn Taymiyya, Ihya, Mihna)...",
+  stufeProKategorie: { imam: 1, muhaddith: 1, gelehrter: 2, werk: 2, thema: 3 },
   hinweis: "Innersunnitische Debatten sind neutral dargestellt und mit [Khilaf] markiert; keine Richtung wird als die allein richtige präsentiert. Schulzuordnungen folgen der verbreiteten Einstufung.",
   extraFilter: [
     {

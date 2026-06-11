@@ -5,6 +5,7 @@ import { prophetenConfig } from "../data/propheten";
 import { surenAnzahl } from "../data/quran";
 import { gelehrteConfig } from "../data/gelehrte";
 import { alleFragen } from "../lib/fragen";
+import { Logo } from "../components/Logo";
 
 function Stern({ klasse }: { klasse?: string }) {
   return (
@@ -76,8 +77,8 @@ export default function Landing() {
     <div className="muster">
       <section className="hero-glow mx-auto max-w-5xl px-4 pt-16 pb-8 text-center">
         <div className="einblenden relative">
-          <div className="flex justify-center text-gold mb-4">
-            <Stern klasse="h-10 w-10 drop-shadow-[0_0_18px_rgba(212,175,55,0.45)]" />
+          <div className="flex justify-center mb-4 drop-shadow-[0_0_24px_rgba(212,175,55,0.45)]">
+            <Logo className="h-16 w-16" />
           </div>
           <h1 className="font-serif text-5xl md:text-7xl gold-text leading-tight">Muslim-Atlas</h1>
           <p className="font-arabic text-2xl md:text-3xl text-cremedim mt-3" dir="rtl">
@@ -142,6 +143,9 @@ export default function Landing() {
               Umstrittenes trägt [Khilaf], Mehrheitsmeinungen [Jumhur]; der Datensatz ist ein
               wachsender, korrekt belegter Kern.
             </p>
+            <Link to="/quellen" className="inline-block mt-3 text-sm text-goldhell underline font-medium">
+              Vollständiges Quellenverzeichnis →
+            </Link>
           </div>
         </div>
       </section>

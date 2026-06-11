@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Logo } from "./Logo";
 
 const navLinkKlasse = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-md text-sm font-medium transition ${
@@ -29,9 +30,7 @@ export function Layout() {
       <header className="sticky top-0 z-50 border-b border-gold/20 bg-grund/90 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 flex items-center justify-between h-14">
           <Link to="/" className="flex items-center gap-2">
-            <svg viewBox="0 0 100 100" className="h-7 w-7" aria-hidden>
-              <polygon points="50,5 61,35 95,35 67,55 78,90 50,68 22,90 33,55 5,35 39,35" fill="#D4AF37" />
-            </svg>
+            <Logo className="h-8 w-8" />
             <span className="font-serif text-xl text-gold">Muslim-Atlas</span>
           </Link>
 
@@ -104,13 +103,16 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-gold/20 py-6 text-center text-sm text-cremedim">
+      <footer className="border-t border-gold/20 py-6 text-center text-sm text-cremedim px-4">
         <p>
           Muslim-Atlas: Kuratierte Daten aus Ibn Hisham, ar-Rahiq al-Makhtum, den sechs Hadith-Sammlungen
           und dem Quran. Jede Angabe trägt ihre Quelle; externe Prüfung via{" "}
           <a href="https://sunnah.com" target="_blank" rel="noopener noreferrer" className="text-goldhell underline">sunnah.com</a>{" "}
           und{" "}
           <a href="https://quran.com" target="_blank" rel="noopener noreferrer" className="text-goldhell underline">quran.com</a>.
+        </p>
+        <p className="mt-2">
+          <Link to="/quellen" className="text-goldhell underline font-medium">Vollständiges Quellenverzeichnis ansehen →</Link>
         </p>
       </footer>
     </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
   Handle, Position, useReactFlow, type Node, type Edge, type NodeProps,
@@ -6,6 +6,10 @@ import {
 import { QuellenListe } from "../lib/quellen";
 import { NotizBox } from "../components/NotizBox";
 import { logSearchDebounced, logEvent } from "../lib/analytics";
+import { useAuth } from "../context/AuthContext";
+import { STUFEN_LABEL, setzeStufe, stufeLokal, ladeStufen, type Wissensstufe } from "../lib/stufe";
+
+const Graph3D = lazy(() => import("./Graph3D"));
 
 // Generische Mindmap-Engine: jeder Wissensbereich (Propheten, Quran, Gelehrte, ...)
 // liefert nur Daten + Konfiguration und bekommt Suche, Filter, Side-Panel und Notizen.
@@ -54,6 +58,8 @@ export interface AtlasConfig {
   suchPlatzhalter: string;
   hinweis?: string;
   extraFilter?: { feld: string; label: string; werte: Record<string, string> }[];
+  // Ab welcher Wissensstufe eine Kategorie sichtbar wird (Standard: 1 = immer)
+  stufeProKategorie?: Record<string, Wissensstufe>;
 }
 
 function berechnePositionen(cfg: AtlasConfig): Map<string, { x: number; y: number }> {
@@ -82,7 +88,7 @@ function AtlasNodeBox({ data, selected }: NodeProps) {
   };
   return (
     <div
-      className={`px-3 py-2 min-w-44 max-w-56 text-center shadow-lg bg-flaeche ${d.eckig ? "" : "rounded-xl"}`}
+      className={`knoten3d px-3 py-2 min-w-44 max-w-56 text-center shadow-lg bg-flaeche ${d.eckig ? "" : "rounded-xl"}`}
       style={{
         border: `2px solid ${farbe}`,
         borderRadius: d.eckig ? 6 : undefined,
@@ -117,15 +123,31 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
   const [jahrVon, setJahrVon] = useState(cfg.jahrMin);
   const [jahrBis, setJahrBis] = useState(cfg.jahrMax);
   const [suche, setSuche] = useState("");
-  const [filterOffen, setFilterOffen] = useState(true);
+  // Auf dem Handy startet das Filter-Panel zugeklappt
+  const [filterOffen, setFilterOffen] = useState(() => typeof window === "undefined" || window.innerWidth >= 768);
   const [ausgewählt, setAusgewählt] = useState<string | null>(null);
   const [extraSel, setExtraSel] = useState<Record<string, Set<string>>>(() =>
     Object.fromEntries((cfg.extraFilter ?? []).map((f) => [f.feld, new Set(Object.keys(f.werte))])),
   );
+  const [stufe, setStufeState] = useState<Wissensstufe>(() => stufeLokal(cfg.section));
+  const [vollbild, setVollbild] = useState(false);
+  const [modus3d, setModus3d] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
   const { setCenter } = useReactFlow();
+
+  useEffect(() => {
+    const h = () => setVollbild(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
+  }, []);
+  useEffect(() => {
+    if (user?.id) ladeStufen(user.id).then(() => setStufeState(stufeLokal(cfg.section)));
+  }, [user?.id, cfg.section]);
 
   const sichtbar = useCallback(
     (n: AtlasNode) => {
+      if ((cfg.stufeProKategorie?.[n.kategorie] ?? 1) > stufe) return false;
       if (!kats.has(n.kategorie) || !eras.has(n.era) || n.jahr < jahrVon || n.jahr > jahrBis) return false;
       for (const f of cfg.extraFilter ?? []) {
         const werte = n.tags?.[f.feld];
@@ -133,8 +155,26 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
       }
       return true;
     },
-    [kats, eras, jahrVon, jahrBis, extraSel, cfg],
+    [kats, eras, jahrVon, jahrBis, extraSel, cfg, stufe],
   );
+
+  // Daten für die 3D-Ansicht (nur sichtbare Knoten und Kanten)
+  const d3Nodes = useMemo(
+    () =>
+      cfg.nodes.filter(sichtbar).map((n) => ({
+        id: n.id,
+        name: n.name,
+        color: cfg.kategorien[n.kategorie]?.farbe ?? "#888",
+        val: n.kategorie === "prophet" || n.kategorie === "ulul_azm" ? 9 : 3.5,
+      })),
+    [cfg, sichtbar],
+  );
+  const d3Links = useMemo(() => {
+    const ids = new Set(d3Nodes.map((n) => n.id));
+    return cfg.edges
+      .filter((e) => typs.has(e.typ) && ids.has(e.von) && ids.has(e.nach))
+      .map((e) => ({ source: e.von, target: e.nach, color: cfg.edgeTypen[e.typ]?.farbe ?? "#777" }));
+  }, [cfg, d3Nodes, typs]);
 
   const nodes: Node[] = useMemo(
     () =>
@@ -166,6 +206,7 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
           target: e.nach,
           label: info.label.length <= 18 ? info.label : undefined,
           hidden: !typs.has(e.typ) || !vonOk || !nachOk,
+          animated: !info.gestrichelt,
           style: { stroke: info.farbe, strokeWidth: 1.6, strokeDasharray: info.gestrichelt ? "6 4" : undefined },
           labelStyle: { fill: "#c9c2b0", fontSize: 10 },
           labelBgStyle: { fill: "#0a1812", opacity: 0.85 },
@@ -194,11 +235,14 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
       setEras(new Set(ALLE_ERAS));
       setJahrVon(cfg.jahrMin);
       setJahrBis(cfg.jahrMax);
+      setStufeState(3);
     }
     setAusgewählt(n.id);
     setSuche("");
-    const p = POSITIONEN.get(n.id)!;
-    setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 600 });
+    if (!modus3d) {
+      const p = POSITIONEN.get(n.id)!;
+      setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 600 });
+    }
     logEvent("search", { query: n.name.toLowerCase(), section: cfg.section, gewählt: true });
   };
 
@@ -215,7 +259,17 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
     : [];
 
   return (
+    <div
+      ref={wrapperRef}
+      className="flex-1 flex flex-col"
+      style={{ height: vollbild ? "100vh" : "calc(100vh - 3.5rem)", background: "var(--color-grund)" }}
+    >
     <div className="relative flex-1 min-h-0">
+      {modus3d ? (
+        <Suspense fallback={<p className="absolute inset-0 flex items-center justify-center text-cremedim">Lade 3D-Ansicht…</p>}>
+          <Graph3D nodes={d3Nodes} links={d3Links} onKnoten={(id) => setAusgewählt(id)} />
+        </Suspense>
+      ) : (
       <div className="absolute inset-0">
         <ReactFlow
           nodes={nodes}
@@ -240,6 +294,23 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
             maskColor="rgba(10,24,18,0.7)"
           />
         </ReactFlow>
+      </div>
+      )}
+
+      {/* Ansicht-Schalter */}
+      <div className="absolute top-16 right-3 z-10 flex flex-col gap-2 md:top-3 md:flex-row">
+        <button className="knopf text-sm shadow-xl" onClick={() => setModus3d(!modus3d)}>
+          {modus3d ? "2D-Karte" : "3D-Ansicht"}
+        </button>
+        <button
+          className="knopf text-sm shadow-xl"
+          onClick={() => {
+            if (document.fullscreenElement) document.exitFullscreen();
+            else wrapperRef.current?.requestFullscreen();
+          }}
+        >
+          {vollbild ? "Vollbild verlassen" : "Vollbild"}
+        </button>
       </div>
 
       {/* Suche */}
@@ -277,6 +348,25 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
         {filterOffen && (
           <div className="karte mt-2 p-3 w-64 overflow-y-auto text-sm space-y-3">
             {cfg.hinweis && <p className="text-xs text-goldhell border border-gold/30 rounded p-2">{cfg.hinweis}</p>}
+            <div>
+              <p className="font-semibold text-gold mb-1">Deine Wissensstufe</p>
+              <select
+                className="eingabe text-sm"
+                value={stufe}
+                onChange={(e) => {
+                  const w = Number(e.target.value) as Wissensstufe;
+                  setStufeState(w);
+                  setzeStufe(cfg.section, w, user?.id);
+                }}
+              >
+                {([1, 2, 3] as Wissensstufe[]).map((w) => (
+                  <option key={w} value={w}>{STUFEN_LABEL[w]}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-cremedim mt-1">
+                Passt die Karte an dein Wissen an — stufe dich jederzeit hoch.
+              </p>
+            </div>
             <div>
               <p className="font-semibold text-gold mb-1">Kategorien</p>
               {ALLE_KATS.map((k) => (
@@ -421,15 +511,14 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
         </aside>
       )}
     </div>
+    </div>
   );
 }
 
 export function AtlasGraph({ cfg }: { cfg: AtlasConfig }) {
   return (
-    <div className="flex-1 flex flex-col" style={{ height: "calc(100vh - 3.5rem)" }}>
-      <ReactFlowProvider>
-        <AtlasGraphInnen cfg={cfg} />
-      </ReactFlowProvider>
-    </div>
+    <ReactFlowProvider>
+      <AtlasGraphInnen cfg={cfg} />
+    </ReactFlowProvider>
   );
 }

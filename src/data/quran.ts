@@ -230,6 +230,7 @@ export const quranConfig: AtlasConfig = {
   jahrLabel: "Offenbarungsreihenfolge (ca.)",
   jahrAnzeigen: false,
   suchPlatzhalter: "Suche: Sure, Nummer, Thema (z. B. Yusuf, 24, Hajj)...",
+  stufeProKategorie: { makki: 1, madani: 1, person: 2 },
   hinweis: "Die Offenbarungsreihenfolge folgt der traditionellen ägyptischen Chronologie; sie ist Gelehrtenarbeit, kein Quran-Text, und in Teilen umstritten. Umstrittene Suren tragen [Khilaf].",
 };
 

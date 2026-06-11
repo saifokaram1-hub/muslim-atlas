@@ -221,5 +221,6 @@ export const prophetenConfig: AtlasConfig = {
   jahrLabel: "Position in der Abfolge",
   jahrAnzeigen: false,
   suchPlatzhalter: "Suche: Prophet, Volk, Ereignis (z. B. Musa, Thamud, Sintflut)...",
+  stufeProKategorie: { ulul_azm: 1, prophet: 1, ereignis: 1, person: 2, volk: 2, gegner: 2 },
   hinweis: "Für diese Epochen gibt es keine gesicherten Jahreszahlen. Die Anordnung folgt der überlieferten Abfolge (Quran; Ibn Kathir, Qasas al-Anbiya); Unsicheres ist mit [Khilaf] markiert.",
 };

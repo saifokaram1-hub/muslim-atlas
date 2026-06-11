@@ -47,6 +47,63 @@ const QIRAAT = [
   { name: "Khalaf al-Bazzar", ueberlieferer: "Ishaq & Idris", region: "Bagdad", zehn: true },
 ];
 
+// ---- Sprach-Rezitation (experimentell, Web Speech API) ----
+// Arabischen Text fuer den Vergleich normalisieren: Tashkil entfernen,
+// Hamza-/Alef-Varianten vereinheitlichen.
+function normalisiere(s: string): string {
+  return s
+    .replace(/[ً-ْٰـۖ-ۭ]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[^ء-ي ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Wortbasierte Aehnlichkeit (0..1) zwischen Rezitation und Vers
+function ähnlichkeit(a: string, b: string): number {
+  const wa = a.split(" ").filter(Boolean);
+  const wb = b.split(" ").filter(Boolean);
+  if (wa.length === 0 || wb.length === 0) return 0;
+  const rest = [...wb];
+  let gemeinsam = 0;
+  for (const w of wa) {
+    const i = rest.indexOf(w);
+    if (i >= 0) { gemeinsam++; rest.splice(i, 1); }
+  }
+  return (2 * gemeinsam) / (wa.length + wb.length);
+}
+
+// Erfolgs-/Fehlerton ueber WebAudio (kein Asset noetig)
+function ton(richtig: boolean) {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if (richtig) {
+      o.type = "sine"; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.18, ctx.currentTime);
+      o.start();
+      o.frequency.exponentialRampToValueAtTime(1318, ctx.currentTime + 0.16);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+      o.stop(ctx.currentTime + 0.45);
+    } else {
+      o.type = "square"; o.frequency.value = 170;
+      g.gain.setValueAtTime(0.12, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+      o.start(); o.stop(ctx.currentTime + 0.35);
+    }
+  } catch { /* still */ }
+}
+
+const erkennungVerfügbar =
+  typeof window !== "undefined" &&
+  (!!(window as unknown as Record<string, unknown>).webkitSpeechRecognition ||
+    !!(window as unknown as Record<string, unknown>).SpeechRecognition);
+
 function lokalLaden(): Record<string, Fortschritt> {
   try { return JSON.parse(localStorage.getItem("hifz") ?? "{}"); } catch { return {}; }
 }
@@ -63,6 +120,8 @@ export default function QuranLernen() {
   const [de, setDe] = useState<QuranDaten | null>(null);
   const [deAn, setDeAn] = useState(false);
   const [aktuellOffen, setAktuellOffen] = useState(false);
+  const [hört, setHört] = useState(false);
+  const [letzteErkennung, setLetzteErkennung] = useState("");
   const [fortschritt, setFortschritt] = useState<Record<string, Fortschritt>>(lokalLaden());
   const [pläne, setPläne] = useState<Plan[]>([]);
   const [planForm, setPlanForm] = useState({ sure: 1, von: 1, bis: 7, proTag: 3 });
@@ -249,6 +308,56 @@ export default function QuranLernen() {
                   Bisherige Fehler: {fortschritt[`${sure}:${aktuellerVers + 1}`]?.fehler ?? 0}
                 </span>
               </div>
+
+              {erkennungVerfügbar && (
+                <div className="mt-3 rounded-lg border border-smaragd/40 p-3">
+                  <button
+                    className="knopf knopf-gold w-full"
+                    disabled={hört}
+                    onClick={() => {
+                      const SR = ((window as unknown as Record<string, unknown>).SpeechRecognition ??
+                        (window as unknown as Record<string, unknown>).webkitSpeechRecognition) as new () => {
+                          lang: string; interimResults: boolean; maxAlternatives: number;
+                          onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+                          onerror: () => void; onend: () => void; start: () => void;
+                        };
+                      const rec = new SR();
+                      rec.lang = "ar-SA";
+                      rec.interimResults = false;
+                      rec.maxAlternatives = 4;
+                      const versNr = aktuellerVers + 1;
+                      const ziel = normalisiere(verse[aktuellerVers]);
+                      setHört(true);
+                      rec.onresult = (e) => {
+                        const alternativen = Array.from(e.results[0]).map((r) => r.transcript);
+                        setLetzteErkennung(alternativen[0] ?? "");
+                        const beste = Math.max(...alternativen.map((a) => ähnlichkeit(normalisiere(a), ziel)));
+                        const bisher = fortschritt[`${sure}:${versNr}`]?.fehler ?? 0;
+                        if (beste >= 0.6) {
+                          ton(true);
+                          setzeFortschritt(versNr, { fehler: bisher, gemeistert: true });
+                        } else {
+                          ton(false);
+                          setzeFortschritt(versNr, { fehler: bisher + 1, gemeistert: false });
+                        }
+                        setHört(false);
+                      };
+                      rec.onerror = () => { setHört(false); };
+                      rec.onend = () => setHört(false);
+                      rec.start();
+                    }}
+                  >
+                    {hört ? `🎙️ Ich höre zu — rezitiere Vers ${aktuellerVers + 1} jetzt...` : `🎤 Vers ${aktuellerVers + 1} per Stimme rezitieren (automatische Prüfung)`}
+                  </button>
+                  {letzteErkennung && (
+                    <p className="text-xs text-cremedim mt-2" dir="rtl">Verstanden: „{letzteErkennung}"</p>
+                  )}
+                  <p className="text-[11px] text-cremedim mt-1">
+                    Richtig = Vers wird geschrieben + Erfolgsklang · Falsch = nur Fehlerton (3× falsch = rot).
+                    Experimentell: am besten in Chrome, deutlich auf Hocharabisch rezitieren.
+                  </p>
+                </div>
+              )}
               {!aktuellOffen ? (
                 <button
                   className="w-full mt-3 py-8 rounded-lg border border-dashed border-gold/30 text-cremedim hover:border-gold/60 hover:text-creme transition"

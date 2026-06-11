@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
@@ -11,6 +11,10 @@ import {
 import { QuellenListe } from "../lib/quellen";
 import { NotizBox } from "../components/NotizBox";
 import { logSearchDebounced, logEvent } from "../lib/analytics";
+import { useAuth } from "../context/AuthContext";
+import { setzeStufe, stufeLokal, ladeStufen, type Wissensstufe } from "../lib/stufe";
+
+const Graph3D = lazy(() => import("../components/Graph3D"));
 
 // ---- Layout: Ereignisse als Zeitachse, Personen in Kategorie-Bändern ----
 const BAND_Y: Record<NodeKategorie, number> = {
@@ -48,7 +52,7 @@ function PersonNode({ data, selected }: NodeProps) {
   const farbe = KATEGORIE_INFO[d.kategorie].farbe;
   return (
     <div
-      className="rounded-xl px-3 py-2 bg-flaeche min-w-44 max-w-52 text-center shadow-lg"
+      className="knoten3d rounded-xl px-3 py-2 bg-flaeche min-w-44 max-w-52 text-center shadow-lg"
       style={{ border: `2px solid ${farbe}`, boxShadow: selected ? `0 0 0 3px #d4af37` : undefined }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
@@ -68,7 +72,7 @@ function EreignisNode({ data, selected }: NodeProps) {
   const farbe = KATEGORIE_INFO[d.kategorie].farbe;
   return (
     <div
-      className="px-3 py-2 min-w-48 max-w-56 text-center shadow-lg"
+      className="knoten3d px-3 py-2 min-w-48 max-w-56 text-center shadow-lg"
       style={{
         background: istKorrektur ? "#241a10" : "#1a2c1a",
         border: `2px solid ${farbe}`,
@@ -111,11 +115,26 @@ function SiraGraphInnen() {
   const [jahrVon, setJahrVon] = useState(570);
   const [jahrBis, setJahrBis] = useState(632);
   const [suche, setSuche] = useState("");
-  const [filterOffen, setFilterOffen] = useState(true);
+  // Auf dem Handy startet das Filter-Panel zugeklappt
+  const [filterOffen, setFilterOffen] = useState(() => typeof window === "undefined" || window.innerWidth >= 768);
   const [legendeOffen, setLegendeOffen] = useState(false);
   const [ausgewählt, setAusgewählt] = useState<string | null>(null);
-  const [umfang, setUmfang] = useState(3);
+  // Umfang = Wissensstufe (1 Anfänger, 2 Fortgeschritten, 3 Experte)
+  const [umfang, setUmfang] = useState<number>(() => stufeLokal("sira"));
+  const [vollbild, setVollbild] = useState(false);
+  const [modus3d, setModus3d] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
   const { setCenter } = useReactFlow();
+
+  useEffect(() => {
+    const h = () => setVollbild(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
+  }, []);
+  useEffect(() => {
+    if (user?.id) ladeStufen(user.id).then(() => setUmfang(stufeLokal("sira")));
+  }, [user?.id]);
 
   const sichtbar = useCallback(
     (n: SiraNode) => {
@@ -151,6 +170,7 @@ function SiraGraphInnen() {
           target: e.nach,
           label: e.typ === "teilnahme" ? undefined : info.label,
           hidden: !typs.has(e.typ) || !vonOk || !nachOk,
+          animated: !info.gestrichelt,
           style: { stroke: info.farbe, strokeWidth: 1.6, strokeDasharray: info.gestrichelt ? "6 4" : undefined },
           labelStyle: { fill: "#c9c2b0", fontSize: 10 },
           labelBgStyle: { fill: "#0a1812", opacity: 0.85 },
@@ -184,8 +204,10 @@ function SiraGraphInnen() {
     }
     setAusgewählt(n.id);
     setSuche("");
-    const p = POSITIONEN.get(n.id)!;
-    setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 600 });
+    if (!modus3d) {
+      const p = POSITIONEN.get(n.id)!;
+      setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 600 });
+    }
     logEvent("search", { query: n.name.toLowerCase(), section: "sira", gewählt: true });
   };
 
@@ -196,13 +218,41 @@ function SiraGraphInnen() {
     setter(neu);
   };
 
+  // Daten für die 3D-Ansicht (nur sichtbare Knoten und Kanten)
+  const d3Nodes = useMemo(
+    () =>
+      siraNodes.filter(sichtbar).map((n) => ({
+        id: n.id,
+        name: n.name,
+        color: KATEGORIE_INFO[n.kategorie].farbe,
+        val: n.kategorie === "prophet" ? 10 : n.kategorie === "ereignis" ? 5 : 3.5,
+      })),
+    [sichtbar],
+  );
+  const d3Links = useMemo(() => {
+    const ids = new Set(d3Nodes.map((n) => n.id));
+    return siraEdges
+      .filter((e) => typs.has(e.typ) && ids.has(e.von) && ids.has(e.nach))
+      .map((e) => ({ source: e.von, target: e.nach, color: EDGE_INFO[e.typ].farbe }));
+  }, [d3Nodes, typs]);
+
   const knoten = ausgewählt ? nodeById.get(ausgewählt) : null;
   const verbindungen = ausgewählt
     ? siraEdges.filter((e) => e.von === ausgewählt || e.nach === ausgewählt)
     : [];
 
   return (
+    <div
+      ref={wrapperRef}
+      className="flex-1 flex flex-col"
+      style={{ height: vollbild ? "100vh" : "calc(100vh - 3.5rem)", background: "var(--color-grund)" }}
+    >
     <div className="relative flex-1 min-h-0">
+      {modus3d ? (
+        <Suspense fallback={<p className="absolute inset-0 flex items-center justify-center text-cremedim">Lade 3D-Ansicht…</p>}>
+          <Graph3D nodes={d3Nodes} links={d3Links} onKnoten={(id) => setAusgewählt(id)} />
+        </Suspense>
+      ) : (
       <div className="absolute inset-0">
       <ReactFlow
         nodes={nodes}
@@ -234,6 +284,23 @@ function SiraGraphInnen() {
           maskColor="rgba(10,24,18,0.7)"
         />
       </ReactFlow>
+      </div>
+      )}
+
+      {/* Ansicht-Schalter */}
+      <div className="absolute top-16 right-3 z-10 flex flex-col gap-2 md:top-3 md:flex-row">
+        <button className="knopf text-sm shadow-xl" onClick={() => setModus3d(!modus3d)}>
+          {modus3d ? "2D-Karte" : "3D-Ansicht"}
+        </button>
+        <button
+          className="knopf text-sm shadow-xl"
+          onClick={() => {
+            if (document.fullscreenElement) document.exitFullscreen();
+            else wrapperRef.current?.requestFullscreen();
+          }}
+        >
+          {vollbild ? "Vollbild verlassen" : "Vollbild"}
+        </button>
       </div>
 
       {/* Suchleiste */}
@@ -293,12 +360,16 @@ function SiraGraphInnen() {
               ))}
             </div>
             <div>
-              <p className="font-semibold text-gold mb-1">Sahaba-Umfang (Nähe zum Propheten ﷺ)</p>
+              <p className="font-semibold text-gold mb-1">Deine Wissensstufe (Sahaba-Umfang)</p>
               <input
                 type="range" min={1} max={3} step={1} value={umfang} className="w-full"
-                onChange={(e) => setUmfang(Number(e.target.value))}
+                onChange={(e) => {
+                  const w = Number(e.target.value);
+                  setUmfang(w);
+                  setzeStufe("sira", w as Wissensstufe, user?.id);
+                }}
               />
-              <p className="text-xs text-cremedim">{UMFANG_LABEL[umfang]}</p>
+              <p className="text-xs text-cremedim">{UMFANG_LABEL[umfang]} — stufe dich jederzeit hoch.</p>
             </div>
             <div>
               <p className="font-semibold text-gold mb-1">Zeitraum: {jahrVon} bis {jahrBis}</p>
@@ -434,15 +505,14 @@ function SiraGraphInnen() {
         </aside>
       )}
     </div>
+    </div>
   );
 }
 
 export default function SiraPage() {
   return (
-    <div className="flex-1 flex flex-col" style={{ height: "calc(100vh - 3.5rem)" }}>
-      <ReactFlowProvider>
-        <SiraGraphInnen />
-      </ReactFlowProvider>
-    </div>
+    <ReactFlowProvider>
+      <SiraGraphInnen />
+    </ReactFlowProvider>
   );
 }
