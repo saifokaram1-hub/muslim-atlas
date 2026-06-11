@@ -1,0 +1,149 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+@theme {
+  --color-grund: #0a1812;
+  --color-flaeche: #102b22;
+  --color-flaeche2: #163a2e;
+  --color-smaragd: #1f6f54;
+  --color-smaragdhell: #2f9d77;
+  --color-gold: #d4af37;
+  --color-goldhell: #e8cd6e;
+  --color-creme: #f4efe3;
+  --color-cremedim: #c9c2b0;
+  --color-warn: #b5483d;
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
+  --font-arabic: "Amiri", serif;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background-color: var(--color-grund);
+  color: var(--color-creme);
+  font-family: var(--font-sans);
+}
+
+.muster {
+  background-image: radial-gradient(circle at 1px 1px, rgba(212, 175, 55, 0.13) 1px, transparent 0);
+  background-size: 26px 26px;
+}
+
+.karte {
+  background: linear-gradient(160deg, var(--color-flaeche) 0%, #0d2218 100%);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 0.85rem;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+}
+
+.karte-aktiv:hover {
+  border-color: rgba(212, 175, 55, 0.55);
+  box-shadow: 0 12px 40px -12px rgba(212, 175, 55, 0.25), 0 4px 16px rgba(0, 0, 0, 0.4);
+  transform: translateY(-3px);
+}
+
+/* Goldener Verlaufstext fuer grosse Ueberschriften */
+.gold-text {
+  background: linear-gradient(120deg, #e8cd6e 0%, #d4af37 45%, #f4e4a6 70%, #b8932c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Weicher Lichtschein hinter dem Hero */
+.hero-glow {
+  position: relative;
+}
+.hero-glow::before {
+  content: "";
+  position: absolute;
+  inset: -60px 0 auto 0;
+  height: 320px;
+  background: radial-gradient(ellipse 60% 100% at 50% 0%, rgba(31, 111, 84, 0.35), rgba(212, 175, 55, 0.08) 55%, transparent 75%);
+  pointer-events: none;
+}
+
+/* Ornament-Trennlinie mit achtzackigem Stern */
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: var(--color-gold);
+}
+.ornament::before,
+.ornament::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5), transparent);
+}
+
+@keyframes einblenden {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.einblenden { animation: einblenden 0.7s ease-out both; }
+.einblenden-1 { animation-delay: 0.08s; }
+.einblenden-2 { animation-delay: 0.16s; }
+.einblenden-3 { animation-delay: 0.24s; }
+.einblenden-4 { animation-delay: 0.32s; }
+.einblenden-5 { animation-delay: 0.4s; }
+
+input[type="checkbox"],
+input[type="range"] {
+  accent-color: var(--color-gold);
+}
+
+.eingabe {
+  width: 100%;
+  background: var(--color-grund);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  color: var(--color-creme);
+  outline: none;
+}
+.eingabe:focus { border-color: var(--color-gold); }
+
+.knopf {
+  background: var(--color-smaragd);
+  color: var(--color-creme);
+  border-radius: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.knopf:hover { background: var(--color-smaragdhell); }
+.knopf:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.knopf-gold {
+  background: var(--color-gold);
+  color: #1a1505;
+}
+.knopf-gold:hover { background: var(--color-goldhell); }
+
+/* React Flow Anpassungen */
+.react-flow { background: var(--color-grund); }
+.react-flow__minimap { background: var(--color-flaeche) !important; border-radius: 8px; }
+.react-flow__controls button {
+  background: var(--color-flaeche);
+  border-bottom: 1px solid rgba(212,175,55,0.2);
+  color: var(--color-creme);
+  fill: var(--color-creme);
+}
+.react-flow__controls button:hover { background: var(--color-flaeche2); }
+.react-flow__edge-text { fill: var(--color-cremedim); font-size: 10px; }
+.react-flow__edge-textbg { fill: var(--color-grund); }
+.react-flow__attribution { background: transparent; color: #555; }
+
+@keyframes pulsRot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(181, 72, 61, 0.7); }
+  50% { box-shadow: 0 0 0 9px rgba(181, 72, 61, 0); }
+}
+.puls-rot { animation: pulsRot 1.6s infinite; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--color-grund); }
+::-webkit-scrollbar-thumb { background: var(--color-smaragd); border-radius: 5px; }
