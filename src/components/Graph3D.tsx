@@ -1,9 +1,23 @@
-// 3D-Ansicht der Mindmaps (three.js via react-force-graph-3d).
-// Wird lazy geladen, damit das Haupt-Bundle klein bleibt.
+// Strukturierte 3D-Ansicht: KEINE zufällige Wolke, sondern dieselbe Ordnung wie
+// die 2D-Karte — Zeit von links nach rechts (X), Kategorien als Ebenen (Y),
+// Epochen als Tiefe (Z). Jeder Knoten trägt sein Namensschild, man weiß also
+// vor dem Klick, wen man vor sich hat. (three.js via react-force-graph-3d)
 import { useEffect, useRef, useState } from "react";
 import ForceGraph3D from "react-force-graph-3d";
+import SpriteText from "three-spritetext";
 
-export interface K3D { id: string; name: string; color: string; val: number }
+export interface K3D {
+  id: string;
+  name: string;
+  color: string;
+  val: number;
+  x: number;
+  y: number;
+  z: number;
+  fx: number;
+  fy: number;
+  fz: number;
+}
 export interface V3D { source: string; target: string; color: string }
 
 export default function Graph3D({
@@ -14,6 +28,8 @@ export default function Graph3D({
   onKnoten: (id: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fgRef = useRef<any>(null);
   const [groesse, setGroesse] = useState<{ b: number; h: number } | null>(null);
 
   useEffect(() => {
@@ -26,27 +42,52 @@ export default function Graph3D({
     return () => beobachter.disconnect();
   }, []);
 
+  // Kamera passend ausrichten (nach Engine-Start und bei Datenwechsel)
+  useEffect(() => {
+    const t1 = setTimeout(() => fgRef.current?.zoomToFit(700, 80), 600);
+    const t2 = setTimeout(() => fgRef.current?.zoomToFit(700, 80), 1800);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [nodes.length, groesse?.b]);
+
   return (
     <div ref={ref} className="absolute inset-0">
       {groesse && (
         <ForceGraph3D
+          ref={fgRef}
           width={groesse.b}
           height={groesse.h}
           graphData={{ nodes: nodes as object[], links: links as object[] }}
           backgroundColor="#0a1812"
-          nodeLabel={(n) => `<div style="color:#f4efe3;background:#102b22;border:1px solid #d4af37;border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:13px">${(n as K3D).name}</div>`}
+          enableNodeDrag={false}
+          cooldownTicks={30}
+          onEngineStop={() => fgRef.current?.zoomToFit(700, 80)}
           nodeColor={(n) => (n as K3D).color}
           nodeVal={(n) => (n as K3D).val}
-          nodeOpacity={0.92}
+          nodeOpacity={0.95}
+          nodeThreeObjectExtend={true}
+          nodeThreeObject={(n: object) => {
+            const k = n as K3D;
+            const schild = new SpriteText(k.name);
+            schild.color = "#f4efe3";
+            schild.textHeight = 6.5;
+            schild.backgroundColor = "rgba(16,43,34,0.82)";
+            schild.borderColor = k.color;
+            schild.borderWidth = 0.4;
+            schild.borderRadius = 3;
+            schild.padding = 2;
+            // Schild leicht ueber den Knoten setzen (center ist eine THREE.Sprite-Eigenschaft)
+            (schild as unknown as { center: { set: (x: number, y: number) => void } }).center.set(0.5, -0.7);
+            return schild;
+          }}
           linkColor={(l) => (l as V3D).color}
-          linkOpacity={0.45}
-          linkWidth={0.6}
+          linkOpacity={0.4}
+          linkWidth={0.8}
           onNodeClick={(n) => onKnoten((n as K3D).id)}
           showNavInfo={false}
         />
       )}
-      <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[11px] text-cremedim bg-grund/80 rounded px-2 py-0.5 pointer-events-none">
-        Ziehen = drehen · Scrollen = zoomen · Klick = Details
+      <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[11px] text-cremedim bg-grund/80 rounded px-2 py-0.5 pointer-events-none whitespace-nowrap">
+        Ziehen = drehen · Scrollen = zoomen · Rechtsklick-Ziehen = verschieben · Klick = Details
       </p>
     </div>
   );

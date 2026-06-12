@@ -158,17 +158,30 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
     [kats, eras, jahrVon, jahrBis, extraSel, cfg, stufe],
   );
 
-  // Daten für die 3D-Ansicht (nur sichtbare Knoten und Kanten)
-  const d3Nodes = useMemo(
-    () =>
-      cfg.nodes.filter(sichtbar).map((n) => ({
+  // Daten für die 3D-Ansicht: dieselbe Ordnung wie 2D (Zeit → X, Kategorie → Y),
+  // Epochen als Tiefenebenen (Z); Positionen sind fixiert, nichts verstreut sich.
+  const d3Nodes = useMemo(() => {
+    const sichtbare = cfg.nodes.filter(sichtbar);
+    if (sichtbare.length === 0) return [];
+    const xs = sichtbare.map((n) => POSITIONEN.get(n.id)!.x);
+    const minX = Math.min(...xs);
+    const spanne = Math.max(1, Math.max(...xs) - minX);
+    const eraMitte = (ALLE_ERAS.length - 1) / 2;
+    return sichtbare.map((n) => {
+      const p = POSITIONEN.get(n.id)!;
+      const px = ((p.x - minX) / spanne) * 1700 - 850;
+      const py = -p.y * 0.85;
+      const pz = (Math.max(0, ALLE_ERAS.indexOf(n.era)) - eraMitte) * 240;
+      return {
         id: n.id,
         name: n.name,
         color: cfg.kategorien[n.kategorie]?.farbe ?? "#888",
         val: n.kategorie === "prophet" || n.kategorie === "ulul_azm" ? 9 : 3.5,
-      })),
-    [cfg, sichtbar],
-  );
+        x: px, y: py, z: pz,
+        fx: px, fy: py, fz: pz,
+      };
+    });
+  }, [cfg, sichtbar, POSITIONEN, ALLE_ERAS]);
   const d3Links = useMemo(() => {
     const ids = new Set(d3Nodes.map((n) => n.id));
     return cfg.edges

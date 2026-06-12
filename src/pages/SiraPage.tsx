@@ -218,17 +218,29 @@ function SiraGraphInnen() {
     setter(neu);
   };
 
-  // Daten für die 3D-Ansicht (nur sichtbare Knoten und Kanten)
-  const d3Nodes = useMemo(
-    () =>
-      siraNodes.filter(sichtbar).map((n) => ({
+  // Daten für die 3D-Ansicht: dieselbe Ordnung wie 2D (Zeit → X, Kategorie → Y),
+  // Epochen (vorislamisch/Mekka/Medina) als Tiefenebenen (Z); Positionen fixiert.
+  const d3Nodes = useMemo(() => {
+    const sichtbare = siraNodes.filter(sichtbar);
+    if (sichtbare.length === 0) return [];
+    const xs = sichtbare.map((n) => POSITIONEN.get(n.id)!.x);
+    const minX = Math.min(...xs);
+    const spanne = Math.max(1, Math.max(...xs) - minX);
+    return sichtbare.map((n) => {
+      const p = POSITIONEN.get(n.id)!;
+      const px = ((p.x - minX) / spanne) * 1700 - 850;
+      const py = -p.y * 0.85;
+      const pz = (ALLE_ERAS.indexOf(n.era) - 1) * 240;
+      return {
         id: n.id,
         name: n.name,
         color: KATEGORIE_INFO[n.kategorie].farbe,
         val: n.kategorie === "prophet" ? 10 : n.kategorie === "ereignis" ? 5 : 3.5,
-      })),
-    [sichtbar],
-  );
+        x: px, y: py, z: pz,
+        fx: px, fy: py, fz: pz,
+      };
+    });
+  }, [sichtbar]);
   const d3Links = useMemo(() => {
     const ids = new Set(d3Nodes.map((n) => n.id));
     return siraEdges
