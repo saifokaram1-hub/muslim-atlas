@@ -69,7 +69,8 @@ export function Registrieren() {
       options: { data: { username: username.trim() } },
     });
     if (!error && data.session) {
-      navigate("/sira");
+      // Direkt zum Onboarding-Fragebogen (Wissensstufen, Lernziele, Design)
+      navigate("/willkommen");
       return;
     }
     setLädt(false);

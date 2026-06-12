@@ -13,9 +13,19 @@ interface Notiz {
   updated_at: string;
 }
 
+interface Favorit { art: string; ref: string; name: string }
+
+// Wohin führt ein Favorit?
+function favoritLink(f: Favorit): string {
+  if (f.art === "sira") return `/sira?fokus=${f.ref}`;
+  if (f.art === "eigene") return "/meine-maps";
+  return `/${f.art}`;
+}
+
 export default function Notizen() {
   const { user, laden } = useAuth();
   const [notizen, setNotizen] = useState<Notiz[]>([]);
+  const [favoriten, setFavoriten] = useState<Favorit[]>([]);
   const [geladen, setGeladen] = useState(false);
   const navigate = useNavigate();
 
@@ -34,6 +44,11 @@ export default function Notizen() {
         setNotizen((data as Notiz[]) ?? []);
         setGeladen(true);
       });
+    supabase
+      .from("favoriten")
+      .select("art, ref, name")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setFavoriten((data as Favorit[]) ?? []));
   }, [user?.id]);
 
   const titelFür = (n: Notiz) => {
@@ -54,8 +69,26 @@ export default function Notizen() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 w-full">
-      <h1 className="font-serif text-3xl text-gold">Meine Notizen</h1>
-      <p className="text-cremedim mt-1 text-sm">Alle Notizen, die du an Knoten im Sira-Atlas und Hadith-Atlas gespeichert hast.</p>
+      <h1 className="font-serif text-3xl text-gold">Meine Notizen & Favoriten</h1>
+      <p className="text-cremedim mt-1 text-sm">Alles, was du im Atlas gespeichert und mit ★ markiert hast.</p>
+
+      {favoriten.length > 0 && (
+        <div className="mt-6">
+          <h2 className="font-serif text-xl text-goldhell mb-2">★ Favoriten</h2>
+          <div className="flex flex-wrap gap-2">
+            {favoriten.map((f) => (
+              <Link
+                key={`${f.art}-${f.ref}`}
+                to={favoritLink(f)}
+                className="karte karte-aktiv px-3 py-1.5 text-sm text-creme inline-flex items-center gap-1.5"
+              >
+                <span className="text-gold">★</span> {f.name || f.ref}
+                <span className="text-[10px] text-cremedim">({f.art})</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!geladen && <p className="text-cremedim mt-6">Lädt...</p>}
       {geladen && notizen.length === 0 && (

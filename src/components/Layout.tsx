@@ -11,6 +11,10 @@ const navLinkKlasse = ({ isActive }: { isActive: boolean }) =>
 export function Layout() {
   const { user, profil, abmelden } = useAuth();
   const [offen, setOffen] = useState(false);
+  // Quellen-Hinweis unten ist wegklickbar (gemerkt im Browser)
+  const [fusszeileZu, setFusszeileZu] = useState(() => {
+    try { return localStorage.getItem("fusszeile-zu") === "1"; } catch { return false; }
+  });
   const navigate = useNavigate();
 
   const linksAlle = [
@@ -21,8 +25,9 @@ export function Layout() {
     { zu: "/gelehrte", text: "Gelehrte" },
     { zu: "/hifz", text: "Hifz" },
     { zu: "/lernen", text: "Lernen" },
-    ...(user ? [{ zu: "/notizen", text: "Meine Notizen" }] : []),
-    ...(profil?.role === "admin" ? [{ zu: "/admin", text: "Adminportal" }] : []),
+    { zu: "/bibliothek", text: "Bibliothek" },
+    ...(user ? [{ zu: "/meine-maps", text: "Meine Maps" }, { zu: "/notizen", text: "Notizen" }] : []),
+    ...(profil?.role === "admin" ? [{ zu: "/admin", text: "Admin" }] : []),
   ];
 
   return (
@@ -45,6 +50,7 @@ export function Layout() {
           <div className="hidden md:flex items-center gap-2">
             {user ? (
               <>
+                <Link to="/willkommen" title="Einstellungen: Wissensstufen & Design" className="text-cremedim hover:text-gold text-lg">⚙</Link>
                 <span className="text-sm text-cremedim">
                   {profil?.username ?? user.email}
                 </span>
@@ -103,18 +109,35 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-gold/20 py-6 text-center text-sm text-cremedim px-4">
-        <p>
-          Muslim-Atlas: Kuratierte Daten aus Ibn Hisham, ar-Rahiq al-Makhtum, den sechs Hadith-Sammlungen
-          und dem Quran. Jede Angabe trägt ihre Quelle; externe Prüfung via{" "}
-          <a href="https://sunnah.com" target="_blank" rel="noopener noreferrer" className="text-goldhell underline">sunnah.com</a>{" "}
-          und{" "}
-          <a href="https://quran.com" target="_blank" rel="noopener noreferrer" className="text-goldhell underline">quran.com</a>.
-        </p>
-        <p className="mt-2">
-          <Link to="/quellen" className="text-goldhell underline font-medium">Vollständiges Quellenverzeichnis ansehen →</Link>
-        </p>
-      </footer>
+      {fusszeileZu ? (
+        <footer className="border-t border-gold/10 py-1.5 text-center">
+          <Link to="/quellen" className="text-xs text-goldhell underline">Quellenverzeichnis</Link>
+        </footer>
+      ) : (
+        <footer className="relative border-t border-gold/20 py-6 text-center text-sm text-cremedim px-10">
+          <button
+            className="absolute top-2 right-3 text-cremedim hover:text-creme text-lg leading-none"
+            aria-label="Hinweis ausblenden"
+            title="Hinweis ausblenden (Quellenverzeichnis bleibt unten erreichbar)"
+            onClick={() => {
+              setFusszeileZu(true);
+              try { localStorage.setItem("fusszeile-zu", "1"); } catch { /* still */ }
+            }}
+          >
+            ✕
+          </button>
+          <p>
+            Muslim-Atlas: Kuratierte Daten aus Ibn Hisham, ar-Rahiq al-Makhtum, den sechs Hadith-Sammlungen
+            und dem Quran. Jede Angabe trägt ihre Quelle; externe Prüfung via{" "}
+            <a href="https://sunnah.com" target="_blank" rel="noopener noreferrer" className="text-goldhell underline">sunnah.com</a>{" "}
+            und{" "}
+            <a href="https://quran.com" target="_blank" rel="noopener noreferrer" className="text-goldhell underline">quran.com</a>.
+          </p>
+          <p className="mt-2">
+            <Link to="/quellen" className="text-goldhell underline font-medium">Vollständiges Quellenverzeichnis ansehen →</Link>
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

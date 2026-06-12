@@ -9,6 +9,10 @@ export default function HadithBuchSeite() {
   const [suche, setSuche] = useState("");
   const [grading, setGrading] = useState<GradingStufe | "alle">("alle");
   const [thema, setThema] = useState<string>("alle");
+  // Volltext des gesamten Buches (arabisch, lazy geladen)
+  const [volltext, setVolltext] = useState<[number, string][] | null>(null);
+  const [vtLädt, setVtLädt] = useState(false);
+  const [vtSuche, setVtSuche] = useState("");
 
   const alle = useMemo(() => (buchId ? haditheProBuch(buchId) : []), [buchId]);
   const themen = useMemo(() => Array.from(new Set(alle.flatMap((h) => h.themen))).sort(), [alle]);
@@ -83,6 +87,81 @@ export default function HadithBuchSeite() {
             <p className="text-sm text-cremedim mt-1 line-clamp-2">{h.textDe}</p>
           </Link>
         ))}
+      </div>
+
+      {/* Volltext des gesamten Buches */}
+      <div className="mt-10">
+        <h2 className="font-serif text-2xl text-goldhell">Volltext durchsuchen (arabisch)</h2>
+        <p className="text-sm text-cremedim mt-1">
+          Das komplette Buch als digitalisierter arabischer Text (freier Open-Source-Datensatz).
+          Die Überliefererkette (Isnad) steht in jedem Hadith am Anfang des Textes; Übersetzung
+          und Gegenprüfung über den sunnah.com-Link am jeweiligen Hadith.
+        </p>
+        {!volltext ? (
+          <button
+            className="knopf knopf-gold mt-3"
+            disabled={vtLädt}
+            onClick={async () => {
+              setVtLädt(true);
+              try {
+                const r = await fetch(`${import.meta.env.BASE_URL}hadith/${buch.id}.json`);
+                const j = (await r.json()) as { h: [number, string][] };
+                setVolltext(j.h);
+              } finally {
+                setVtLädt(false);
+              }
+            }}
+          >
+            {vtLädt ? "Lade Volltext…" : `Volltext laden (${buch.anzahl.split(" ")[1] ?? "alle"} Hadithe)`}
+          </button>
+        ) : (
+          <>
+            <input
+              className="eingabe mt-3"
+              placeholder={`In allen ${volltext.length} Hadithen suchen: Nummer (z. B. 1) oder arabischer Text...`}
+              value={vtSuche}
+              onChange={(e) => {
+                setVtSuche(e.target.value);
+                logSearchDebounced(e.target.value, `hadith-volltext:${buch.id}`);
+              }}
+            />
+            {(() => {
+              const q = vtSuche.trim();
+              let treffer: [number, string][] = [];
+              if (/^\d+$/.test(q)) {
+                treffer = volltext.filter(([n]) => String(n) === q || String(n).startsWith(q)).slice(0, 20);
+              } else if (q.length >= 3) {
+                treffer = volltext.filter(([, t]) => t.includes(q)).slice(0, 50);
+              }
+              if (q.length === 0) {
+                return <p className="text-xs text-cremedim mt-2">Tipp: Hadith-Nummer eingeben (z. B. 6018) oder ein arabisches Wort.</p>;
+              }
+              if (treffer.length === 0) {
+                return <p className="text-sm text-cremedim mt-3">Keine Treffer.</p>;
+              }
+              return (
+                <div className="mt-3 space-y-3">
+                  {treffer.map(([n, t]) => (
+                    <div key={n} className="karte p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-goldhell font-mono">Nr. {n}</span>
+                        <a
+                          href={`https://sunnah.com/${buch.id}:${n}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-goldhell underline"
+                        >
+                          Übersetzung & Prüfung auf sunnah.com ↗
+                        </a>
+                      </div>
+                      <p className="font-arabic text-xl leading-loose text-right mt-2 text-creme" dir="rtl">{t}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </>
+        )}
       </div>
     </div>
   );

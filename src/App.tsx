@@ -14,6 +14,9 @@ import GelehrtePage from "./pages/GelehrtePage";
 import Lernen from "./pages/Lernen";
 import QuranLernen from "./pages/QuranLernen";
 import Quellen from "./pages/Quellen";
+import Willkommen from "./pages/Willkommen";
+import Bibliothek from "./pages/Bibliothek";
+import MeineMaps from "./pages/MeineMaps";
 import Notizen from "./pages/Notizen";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -40,6 +43,9 @@ export default function App() {
           <Route path="/lernen" element={<Lernen />} />
           <Route path="/hifz" element={<QuranLernen />} />
           <Route path="/quellen" element={<Quellen />} />
+          <Route path="/willkommen" element={<Willkommen />} />
+          <Route path="/bibliothek" element={<Bibliothek />} />
+          <Route path="/meine-maps" element={<MeineMaps />} />
           <Route path="/hadith" element={<HadithÜbersicht />} />
           <Route path="/hadith/:buchId" element={<HadithBuchSeite />} />
           <Route path="/hadith/:buchId/:hadithId" element={<HadithDetail />} />

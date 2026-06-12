@@ -8,6 +8,8 @@ import { NotizBox } from "../components/NotizBox";
 import { logSearchDebounced, logEvent } from "../lib/analytics";
 import { useAuth } from "../context/AuthContext";
 import { STUFEN_LABEL, setzeStufe, stufeLokal, ladeStufen, type Wissensstufe } from "../lib/stufe";
+import { knotenform } from "../lib/design";
+import { FavStern } from "./FavStern";
 
 const Graph3D = lazy(() => import("./Graph3D"));
 
@@ -83,12 +85,13 @@ function berechnePositionen(cfg: AtlasConfig): Map<string, { x: number; y: numbe
 }
 
 function AtlasNodeBox({ data, selected }: NodeProps) {
-  const { node: d, farbe, label, jahrAnzeigen } = data as unknown as {
-    node: AtlasNode; farbe: string; label: string; jahrAnzeigen: boolean;
+  const { node: d, farbe, label, jahrAnzeigen, skala } = data as unknown as {
+    node: AtlasNode; farbe: string; label: string; jahrAnzeigen: boolean; skala: number;
   };
   return (
+    <div style={{ transform: `scale(${skala})` }}>
     <div
-      className={`knoten3d px-3 py-2 min-w-44 max-w-56 text-center shadow-lg bg-flaeche ${d.eckig ? "" : "rounded-xl"}`}
+      className={`knoten3d px-3 py-2 min-w-44 max-w-56 text-center shadow-lg bg-flaeche ${d.eckig ? "" : knotenform() === "eckig" ? "rounded-md" : "rounded-xl"}`}
       style={{
         border: `2px solid ${farbe}`,
         borderRadius: d.eckig ? 6 : undefined,
@@ -104,6 +107,7 @@ function AtlasNodeBox({ data, selected }: NodeProps) {
         {jahrAnzeigen ? ` · ${d.jahr}` : ""}
       </div>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    </div>
     </div>
   );
 }
@@ -176,10 +180,15 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
         id: n.id,
         name: n.name,
         color: cfg.kategorien[n.kategorie]?.farbe ?? "#888",
-        val: n.kategorie === "prophet" || n.kategorie === "ulul_azm" ? 9 : 3.5,
+        // Größe nach Verbindungsgrad (in der Map unten berechnet)
+        val: 3,
         x: px, y: py, z: pz,
         fx: px, fy: py, fz: pz,
       };
+    }).map((k) => {
+      let g = 0;
+      for (const e of cfg.edges) if (e.von === k.id || e.nach === k.id) g++;
+      return { ...k, val: Math.min(3 + g * 0.9, 24) };
     });
   }, [cfg, sichtbar, POSITIONEN, ALLE_ERAS]);
   const d3Links = useMemo(() => {
@@ -188,6 +197,47 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
       .filter((e) => typs.has(e.typ) && ids.has(e.von) && ids.has(e.nach))
       .map((e) => ({ source: e.von, target: e.nach, color: cfg.edgeTypen[e.typ]?.farbe ?? "#777" }));
   }, [cfg, d3Nodes, typs]);
+
+  // Verbindungsgrad: je mehr Verbindungen, desto größer der Knoten
+  const grad = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of cfg.edges) {
+      m.set(e.von, (m.get(e.von) ?? 0) + 1);
+      m.set(e.nach, (m.get(e.nach) ?? 0) + 1);
+    }
+    return m;
+  }, [cfg]);
+  const skalaFür = useCallback(
+    (id: string) => {
+      const g = grad.get(id) ?? 0;
+      return g <= 1 ? 0.8 : g <= 3 ? 0.95 : g <= 7 ? 1.1 : g <= 15 ? 1.28 : 1.5;
+    },
+    [grad],
+  );
+
+  // Verlauf für Zurück/Vor-Navigation zwischen Knoten
+  const [verlauf, setVerlauf] = useState<string[]>([]);
+  const [vPos, setVPos] = useState(-1);
+  const wähle = useCallback(
+    (id: string, ausVerlauf = false) => {
+      setAusgewählt(id);
+      if (!ausVerlauf) {
+        setVerlauf((alt) => [...alt.slice(0, vPos + 1), id]);
+        setVPos((p) => p + 1);
+      }
+      if (!modus3d && POSITIONEN.has(id)) {
+        const p = POSITIONEN.get(id)!;
+        setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 500 });
+      }
+    },
+    [vPos, modus3d, POSITIONEN, setCenter],
+  );
+  const zurück = () => { if (vPos > 0) { setVPos(vPos - 1); wähle(verlauf[vPos - 1], true); } };
+  const vor = () => { if (vPos < verlauf.length - 1) { setVPos(vPos + 1); wähle(verlauf[vPos + 1], true); } };
+
+  // Tooltip beim Überfahren einer Verbindung + Kontext-Popup bei Langdruck/Rechtsklick
+  const [kantenTipp, setKantenTipp] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [kontext, setKontext] = useState<{ id: string; x: number; y: number } | null>(null);
 
   const nodes: Node[] = useMemo(
     () =>
@@ -200,11 +250,12 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
           farbe: cfg.kategorien[n.kategorie]?.farbe ?? "#888",
           label: cfg.kategorien[n.kategorie]?.label ?? n.kategorie,
           jahrAnzeigen: cfg.jahrAnzeigen,
+          skala: skalaFür(n.id),
         } as unknown as Record<string, unknown>,
         hidden: !sichtbar(n),
         selected: n.id === ausgewählt,
       })),
-    [cfg, POSITIONEN, sichtbar, ausgewählt],
+    [cfg, POSITIONEN, sichtbar, ausgewählt, skalaFür],
   );
 
   const edges: Edge[] = useMemo(
@@ -220,6 +271,9 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
           label: info.label.length <= 18 ? info.label : undefined,
           hidden: !typs.has(e.typ) || !vonOk || !nachOk,
           animated: !info.gestrichelt,
+          data: {
+            tipp: `${info.label}: ${nodeById.get(e.von)?.name ?? e.von} → ${nodeById.get(e.nach)?.name ?? e.nach}${e.notiz ? ` (${e.notiz})` : ""}`,
+          },
           style: { stroke: info.farbe, strokeWidth: 1.6, strokeDasharray: info.gestrichelt ? "6 4" : undefined },
           labelStyle: { fill: "#c9c2b0", fontSize: 10 },
           labelBgStyle: { fill: "#0a1812", opacity: 0.85 },
@@ -250,12 +304,8 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
       setJahrBis(cfg.jahrMax);
       setStufeState(3);
     }
-    setAusgewählt(n.id);
+    wähle(n.id);
     setSuche("");
-    if (!modus3d) {
-      const p = POSITIONEN.get(n.id)!;
-      setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 600 });
-    }
     logEvent("search", { query: n.name.toLowerCase(), section: cfg.section, gewählt: true });
   };
 
@@ -280,7 +330,7 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
     <div className="relative flex-1 min-h-0">
       {modus3d ? (
         <Suspense fallback={<p className="absolute inset-0 flex items-center justify-center text-cremedim">Lade 3D-Ansicht…</p>}>
-          <Graph3D nodes={d3Nodes} links={d3Links} onKnoten={(id) => setAusgewählt(id)} />
+          <Graph3D nodes={d3Nodes} links={d3Links} onKnoten={(id) => wähle(id)} />
         </Suspense>
       ) : (
       <div className="absolute inset-0">
@@ -288,8 +338,16 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
-          onNodeClick={(_e, node) => setAusgewählt(node.id)}
-          onPaneClick={() => setAusgewählt(null)}
+          onNodeClick={(_e, node) => { setKontext(null); wähle(node.id); }}
+          onPaneClick={() => { setAusgewählt(null); setKontext(null); setKantenTipp(null); }}
+          onNodeContextMenu={(ev, node) => {
+            ev.preventDefault();
+            setKontext({ id: node.id, x: Math.min(ev.clientX, window.innerWidth - 290), y: Math.min(ev.clientY, window.innerHeight - 320) });
+          }}
+          onEdgeMouseEnter={(ev, edge) =>
+            setKantenTipp({ x: ev.clientX, y: ev.clientY, text: (edge.data as { tipp?: string } | undefined)?.tipp ?? "" })
+          }
+          onEdgeMouseLeave={() => setKantenTipp(null)}
           fitView
           minZoom={0.05}
           maxZoom={2.5}
@@ -310,8 +368,26 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
       </div>
       )}
 
-      {/* Ansicht-Schalter */}
+      {/* Ansicht-Schalter + Verlauf */}
       <div className="absolute top-16 right-3 z-10 flex flex-col gap-2 md:top-3 md:flex-row">
+        <div className="flex gap-1">
+          <button
+            className="knopf text-sm shadow-xl px-2.5 disabled:opacity-40"
+            disabled={vPos <= 0}
+            title="Zur vorherigen Person zurück"
+            onClick={zurück}
+          >
+            ←
+          </button>
+          <button
+            className="knopf text-sm shadow-xl px-2.5 disabled:opacity-40"
+            disabled={vPos >= verlauf.length - 1}
+            title="Wieder vor"
+            onClick={vor}
+          >
+            →
+          </button>
+        </div>
         <button className="knopf text-sm shadow-xl" onClick={() => setModus3d(!modus3d)}>
           {modus3d ? "2D-Karte" : "3D-Ansicht"}
         </button>
@@ -455,6 +531,51 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
         )}
       </div>
 
+      {/* Kanten-Tooltip: zeigt, wohin eine Verbindung führt */}
+      {kantenTipp && kantenTipp.text && (
+        <div
+          className="fixed z-50 pointer-events-none karte px-3 py-1.5 text-xs text-creme shadow-2xl"
+          style={{ left: kantenTipp.x + 12, top: kantenTipp.y + 12, maxWidth: 320 }}
+        >
+          {kantenTipp.text}
+        </div>
+      )}
+
+      {/* Verbindungs-Popup (Rechtsklick bzw. langes Drücken auf einen Knoten) */}
+      {kontext && (() => {
+        const kn = nodeById.get(kontext.id);
+        if (!kn) return null;
+        const verb = cfg.edges.filter((e) => e.von === kontext.id || e.nach === kontext.id).slice(0, 14);
+        return (
+          <div className="fixed z-50 karte p-3 shadow-2xl w-72" style={{ left: kontext.x, top: kontext.y }}>
+            <div className="flex justify-between items-start gap-2">
+              <p className="text-sm font-semibold text-gold">{kn.name} — Verbindungen</p>
+              <button className="text-cremedim hover:text-creme text-lg leading-none" onClick={() => setKontext(null)}>×</button>
+            </div>
+            <ul className="mt-1 max-h-60 overflow-y-auto divide-y divide-gold/10">
+              {verb.map((v) => {
+                const andererId = v.von === kontext.id ? v.nach : v.von;
+                const anderer = nodeById.get(andererId);
+                if (!anderer) return null;
+                const info = cfg.edgeTypen[v.typ];
+                return (
+                  <li key={v.id}>
+                    <button
+                      className="w-full text-left text-sm py-1.5 hover:bg-flaeche2 rounded px-1"
+                      onClick={() => { setKontext(null); fokussiere(anderer); }}
+                    >
+                      <span style={{ color: info?.farbe }}>{info?.label}</span>{" "}
+                      <span className="text-creme">{anderer.name}</span>
+                    </button>
+                  </li>
+                );
+              })}
+              {verb.length === 0 && <li className="text-xs text-cremedim py-1">Keine Verbindungen erfasst.</li>}
+            </ul>
+          </div>
+        );
+      })()}
+
       {/* Side-Panel */}
       {knoten && (
         <aside className="absolute top-0 right-0 h-full w-[min(380px,95vw)] z-20 karte rounded-none border-l border-gold/30 overflow-y-auto p-4 space-y-4 bg-flaeche/95 backdrop-blur">
@@ -463,7 +584,10 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
               <h2 className="font-serif text-xl text-gold leading-tight">{knoten.name}</h2>
               {knoten.arabisch && <p className="font-arabic text-lg text-cremedim" dir="rtl">{knoten.arabisch}</p>}
             </div>
-            <button className="text-cremedim hover:text-creme text-xl px-1" onClick={() => setAusgewählt(null)}>×</button>
+            <div className="flex items-center gap-1 shrink-0">
+              <FavStern art={cfg.section} refId={knoten.id} name={knoten.name} />
+              <button className="text-cremedim hover:text-creme text-xl px-1" onClick={() => setAusgewählt(null)}>×</button>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs">

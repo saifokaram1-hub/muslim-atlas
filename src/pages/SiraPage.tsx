@@ -13,6 +13,8 @@ import { NotizBox } from "../components/NotizBox";
 import { logSearchDebounced, logEvent } from "../lib/analytics";
 import { useAuth } from "../context/AuthContext";
 import { setzeStufe, stufeLokal, ladeStufen, type Wissensstufe } from "../lib/stufe";
+import { knotenform } from "../lib/design";
+import { FavStern } from "../components/FavStern";
 
 const Graph3D = lazy(() => import("../components/Graph3D"));
 
@@ -48,11 +50,12 @@ const POSITIONEN = berechnePositionen();
 
 // ---- Custom Nodes ----
 function PersonNode({ data, selected }: NodeProps) {
-  const d = data as unknown as SiraNode;
+  const d = data as unknown as SiraNode & { skala?: number };
   const farbe = KATEGORIE_INFO[d.kategorie].farbe;
   return (
+    <div style={{ transform: `scale(${d.skala ?? 1})` }}>
     <div
-      className="knoten3d rounded-xl px-3 py-2 bg-flaeche min-w-44 max-w-52 text-center shadow-lg"
+      className={`knoten3d ${knotenform() === "eckig" ? "rounded-md" : "rounded-xl"} px-3 py-2 bg-flaeche min-w-44 max-w-52 text-center shadow-lg`}
       style={{ border: `2px solid ${farbe}`, boxShadow: selected ? `0 0 0 3px #d4af37` : undefined }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
@@ -63,14 +66,16 @@ function PersonNode({ data, selected }: NodeProps) {
       </div>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
+    </div>
   );
 }
 
 function EreignisNode({ data, selected }: NodeProps) {
-  const d = data as unknown as SiraNode;
+  const d = data as unknown as SiraNode & { skala?: number };
   const istKorrektur = d.kategorie === "korrektur";
   const farbe = KATEGORIE_INFO[d.kategorie].farbe;
   return (
+    <div style={{ transform: `scale(${d.skala ?? 1})` }}>
     <div
       className="knoten3d px-3 py-2 min-w-48 max-w-56 text-center shadow-lg"
       style={{
@@ -84,6 +89,7 @@ function EreignisNode({ data, selected }: NodeProps) {
       <div className="text-[13px] font-semibold text-creme leading-tight">{d.name}</div>
       <div className="text-[11px] mt-0.5 font-mono" style={{ color: farbe }}>{d.daten ?? d.jahr}</div>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    </div>
     </div>
   );
 }
@@ -99,9 +105,9 @@ const SAHABA_KATS: NodeKategorie[] = ["prophet", "ehefrau", "gefährte", "ansar"
 // Auf diese Kategorien wirkt der Nähe-/Umfangs-Regler
 const NAEHE_KATS = new Set<NodeKategorie>(["gefährte", "ansar", "später_konvertit"]);
 const UMFANG_LABEL: Record<number, string> = {
-  1: "Engster Kreis",
-  2: "+ bekannte Gefährten",
-  3: "Alle erfassten Sahaba",
+  1: "Basics — die zentralen Personen und Ereignisse",
+  2: "Fortgeschritten — auch die bekannten Gefährten",
+  3: "Experte — alle erfassten Personen",
 };
 
 function SiraGraphInnen() {
@@ -136,26 +142,97 @@ function SiraGraphInnen() {
     if (user?.id) ladeStufen(user.id).then(() => setUmfang(stufeLokal("sira")));
   }, [user?.id]);
 
+  // Ego-Modus: die Mindmap EINER Person mit all ihren Verbindungen
+  const [ego, setEgo] = useState<string | null>(() => searchParams.get("ego"));
+  const egoNachbarn = useMemo(() => {
+    if (!ego) return null;
+    const s = new Set<string>([ego]);
+    for (const e of siraEdges) {
+      if (e.von === ego) s.add(e.nach);
+      if (e.nach === ego) s.add(e.von);
+    }
+    return s;
+  }, [ego]);
+
+  // Kanten-Tooltip, Kontext-Popup und Navigations-Verlauf
+  const [kantenTipp, setKantenTipp] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [kontext, setKontext] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [verlauf, setVerlauf] = useState<string[]>([]);
+  const [vPos, setVPos] = useState(-1);
+
   const sichtbar = useCallback(
     (n: SiraNode) => {
+      if (egoNachbarn) return egoNachbarn.has(n.id);
       if (!kats.has(n.kategorie) || !eras.has(n.era) || n.jahr < jahrVon || n.jahr > jahrBis) return false;
       if (NAEHE_KATS.has(n.kategorie) && (n.nähe ?? 2) > umfang) return false;
       return true;
     },
-    [kats, eras, jahrVon, jahrBis, umfang],
+    [kats, eras, jahrVon, jahrBis, umfang, egoNachbarn],
   );
+
+  // Radiales Layout im Ego-Modus: die Person in der Mitte, Verbindungen im Kreis
+  const egoPos = useMemo(() => {
+    if (!ego || !egoNachbarn) return null;
+    const m = new Map<string, { x: number; y: number }>();
+    m.set(ego, { x: 0, y: 0 });
+    const andere = [...egoNachbarn].filter((i) => i !== ego);
+    const radius = Math.max(380, andere.length * 34);
+    andere.forEach((id, i) => {
+      const w = (2 * Math.PI * i) / Math.max(1, andere.length);
+      m.set(id, { x: Math.cos(w) * radius, y: Math.sin(w) * radius * 0.72 });
+    });
+    return m;
+  }, [ego, egoNachbarn]);
+  const posFür = useCallback(
+    (id: string) => egoPos?.get(id) ?? POSITIONEN.get(id)!,
+    [egoPos],
+  );
+
+  // Verbindungsgrad: je mehr Verbindungen, desto größer der Knoten
+  const grad = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of siraEdges) {
+      m.set(e.von, (m.get(e.von) ?? 0) + 1);
+      m.set(e.nach, (m.get(e.nach) ?? 0) + 1);
+    }
+    return m;
+  }, []);
+  const skalaFür = useCallback(
+    (id: string) => {
+      const g = grad.get(id) ?? 0;
+      return g <= 1 ? 0.8 : g <= 3 ? 0.95 : g <= 7 ? 1.1 : g <= 15 ? 1.28 : 1.5;
+    },
+    [grad],
+  );
+
+  const wähle = useCallback(
+    (id: string, ausVerlauf = false) => {
+      setAusgewählt(id);
+      if (!ausVerlauf) {
+        setVerlauf((alt) => [...alt.slice(0, vPos + 1), id]);
+        setVPos((p) => p + 1);
+      }
+      if (!modus3d) {
+        const p = posFür(id);
+        setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 500 });
+      }
+    },
+    [vPos, modus3d, posFür, setCenter],
+  );
+  const zurück = () => { if (vPos > 0) { setVPos(vPos - 1); wähle(verlauf[vPos - 1], true); } };
+  const vor = () => { if (vPos < verlauf.length - 1) { setVPos(vPos + 1); wähle(verlauf[vPos + 1], true); } };
 
   const nodes: Node[] = useMemo(
     () =>
       siraNodes.map((n) => ({
         id: n.id,
         type: n.kategorie === "ereignis" || n.kategorie === "korrektur" ? "ereignis" : "person",
-        position: POSITIONEN.get(n.id)!,
-        data: n as unknown as Record<string, unknown>,
+        position: posFür(n.id),
+        data: { ...n, skala: skalaFür(n.id) } as unknown as Record<string, unknown>,
         hidden: !sichtbar(n),
         selected: n.id === ausgewählt,
       })),
-    [sichtbar, ausgewählt],
+    [sichtbar, ausgewählt, posFür, skalaFür],
   );
 
   const edges: Edge[] = useMemo(
@@ -171,6 +248,9 @@ function SiraGraphInnen() {
           label: e.typ === "teilnahme" ? undefined : info.label,
           hidden: !typs.has(e.typ) || !vonOk || !nachOk,
           animated: !info.gestrichelt,
+          data: {
+            tipp: `${info.label}: ${nodeById.get(e.von)?.name ?? e.von} → ${nodeById.get(e.nach)?.name ?? e.nach}${e.notiz ? ` (${e.notiz})` : ""}`,
+          },
           style: { stroke: info.farbe, strokeWidth: 1.6, strokeDasharray: info.gestrichelt ? "6 4" : undefined },
           labelStyle: { fill: "#c9c2b0", fontSize: 10 },
           labelBgStyle: { fill: "#0a1812", opacity: 0.85 },
@@ -202,12 +282,8 @@ function SiraGraphInnen() {
       setJahrBis(632);
       setUmfang(3);
     }
-    setAusgewählt(n.id);
+    wähle(n.id);
     setSuche("");
-    if (!modus3d) {
-      const p = POSITIONEN.get(n.id)!;
-      setCenter(p.x + 100, p.y, { zoom: 1.1, duration: 600 });
-    }
     logEvent("search", { query: n.name.toLowerCase(), section: "sira", gewählt: true });
   };
 
@@ -223,24 +299,24 @@ function SiraGraphInnen() {
   const d3Nodes = useMemo(() => {
     const sichtbare = siraNodes.filter(sichtbar);
     if (sichtbare.length === 0) return [];
-    const xs = sichtbare.map((n) => POSITIONEN.get(n.id)!.x);
+    const xs = sichtbare.map((n) => posFür(n.id).x);
     const minX = Math.min(...xs);
     const spanne = Math.max(1, Math.max(...xs) - minX);
     return sichtbare.map((n) => {
-      const p = POSITIONEN.get(n.id)!;
+      const p = posFür(n.id);
       const px = ((p.x - minX) / spanne) * 1700 - 850;
       const py = -p.y * 0.85;
-      const pz = (ALLE_ERAS.indexOf(n.era) - 1) * 240;
+      const pz = ego ? 0 : (ALLE_ERAS.indexOf(n.era) - 1) * 240;
       return {
         id: n.id,
         name: n.name,
         color: KATEGORIE_INFO[n.kategorie].farbe,
-        val: n.kategorie === "prophet" ? 10 : n.kategorie === "ereignis" ? 5 : 3.5,
+        val: Math.min(3 + (grad.get(n.id) ?? 0) * 0.9, 24),
         x: px, y: py, z: pz,
         fx: px, fy: py, fz: pz,
       };
     });
-  }, [sichtbar]);
+  }, [sichtbar, posFür, ego, grad]);
   const d3Links = useMemo(() => {
     const ids = new Set(d3Nodes.map((n) => n.id));
     return siraEdges
@@ -270,8 +346,16 @@ function SiraGraphInnen() {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        onNodeClick={(_e, node) => setAusgewählt(node.id)}
-        onPaneClick={() => setAusgewählt(null)}
+        onNodeClick={(_e, node) => { setKontext(null); wähle(node.id); }}
+        onPaneClick={() => { setAusgewählt(null); setKontext(null); setKantenTipp(null); }}
+        onNodeContextMenu={(ev, node) => {
+          ev.preventDefault();
+          setKontext({ id: node.id, x: Math.min(ev.clientX, window.innerWidth - 290), y: Math.min(ev.clientY, window.innerHeight - 320) });
+        }}
+        onEdgeMouseEnter={(ev, edge) =>
+          setKantenTipp({ x: ev.clientX, y: ev.clientY, text: (edge.data as { tipp?: string } | undefined)?.tipp ?? "" })
+        }
+        onEdgeMouseLeave={() => setKantenTipp(null)}
         onInit={() => {
           const fokus = searchParams.get("fokus");
           if (fokus) {
@@ -299,8 +383,22 @@ function SiraGraphInnen() {
       </div>
       )}
 
-      {/* Ansicht-Schalter */}
+      {/* Ego-Banner: Mindmap einer einzelnen Person */}
+      {ego && nodeById.get(ego) && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 karte px-4 py-1.5 flex items-center gap-3 text-sm shadow-xl">
+          <span className="text-gold font-semibold">Mindmap: {nodeById.get(ego)!.name}</span>
+          <button className="text-cremedim underline hover:text-creme" onClick={() => { setEgo(null); setAusgewählt(null); }}>
+            Zur großen Karte
+          </button>
+        </div>
+      )}
+
+      {/* Ansicht-Schalter + Verlauf */}
       <div className="absolute top-16 right-3 z-10 flex flex-col gap-2 md:top-3 md:flex-row">
+        <div className="flex gap-1">
+          <button className="knopf text-sm shadow-xl px-2.5 disabled:opacity-40" disabled={vPos <= 0} title="Zur vorherigen Person zurück" onClick={zurück}>←</button>
+          <button className="knopf text-sm shadow-xl px-2.5 disabled:opacity-40" disabled={vPos >= verlauf.length - 1} title="Wieder vor" onClick={vor}>→</button>
+        </div>
         <button className="knopf text-sm shadow-xl" onClick={() => setModus3d(!modus3d)}>
           {modus3d ? "2D-Karte" : "3D-Ansicht"}
         </button>
@@ -382,6 +480,10 @@ function SiraGraphInnen() {
                 }}
               />
               <p className="text-xs text-cremedim">{UMFANG_LABEL[umfang]} — stufe dich jederzeit hoch.</p>
+              <p className="text-[11px] text-goldhell mt-1 border-l-2 border-gold/40 pl-2">
+                Die Stufen ordnen nur nach Bekanntheit für den Lerneinstieg. Im Rang sind die
+                Sahaba allesamt die beste Generation (radiyallahu anhum) — das ist keine Wertung.
+              </p>
             </div>
             <div>
               <p className="font-semibold text-gold mb-1">Zeitraum: {jahrVon} bis {jahrBis}</p>
@@ -441,6 +543,51 @@ function SiraGraphInnen() {
         )}
       </div>
 
+      {/* Kanten-Tooltip: zeigt, wohin eine Verbindung führt */}
+      {kantenTipp && kantenTipp.text && (
+        <div
+          className="fixed z-50 pointer-events-none karte px-3 py-1.5 text-xs text-creme shadow-2xl"
+          style={{ left: kantenTipp.x + 12, top: kantenTipp.y + 12, maxWidth: 320 }}
+        >
+          {kantenTipp.text}
+        </div>
+      )}
+
+      {/* Verbindungs-Popup (Rechtsklick bzw. langes Drücken auf einen Knoten) */}
+      {kontext && (() => {
+        const kn = nodeById.get(kontext.id);
+        if (!kn) return null;
+        const verb = siraEdges.filter((e) => e.von === kontext.id || e.nach === kontext.id).slice(0, 14);
+        return (
+          <div className="fixed z-50 karte p-3 shadow-2xl w-72" style={{ left: kontext.x, top: kontext.y }}>
+            <div className="flex justify-between items-start gap-2">
+              <p className="text-sm font-semibold text-gold">{kn.name} — Verbindungen</p>
+              <button className="text-cremedim hover:text-creme text-lg leading-none" onClick={() => setKontext(null)}>×</button>
+            </div>
+            <ul className="mt-1 max-h-60 overflow-y-auto divide-y divide-gold/10">
+              {verb.map((v) => {
+                const andererId = v.von === kontext.id ? v.nach : v.von;
+                const anderer = nodeById.get(andererId);
+                if (!anderer) return null;
+                const info = EDGE_INFO[v.typ];
+                return (
+                  <li key={v.id}>
+                    <button
+                      className="w-full text-left text-sm py-1.5 hover:bg-flaeche2 rounded px-1"
+                      onClick={() => { setKontext(null); fokussiere(anderer); }}
+                    >
+                      <span style={{ color: info.farbe }}>{info.label}</span>{" "}
+                      <span className="text-creme">{anderer.name}</span>
+                    </button>
+                  </li>
+                );
+              })}
+              {verb.length === 0 && <li className="text-xs text-cremedim py-1">Keine Verbindungen erfasst.</li>}
+            </ul>
+          </div>
+        );
+      })()}
+
       {/* Side-Panel */}
       {knoten && (
         <aside className="absolute top-0 right-0 h-full w-[min(380px,95vw)] z-20 karte rounded-none border-l border-gold/30 overflow-y-auto p-4 space-y-4 bg-flaeche/95 backdrop-blur">
@@ -449,7 +596,10 @@ function SiraGraphInnen() {
               <h2 className="font-serif text-xl text-gold leading-tight">{knoten.name}</h2>
               {knoten.arabisch && <p className="font-arabic text-lg text-cremedim" dir="rtl">{knoten.arabisch}</p>}
             </div>
-            <button className="text-cremedim hover:text-creme text-xl px-1" onClick={() => setAusgewählt(null)}>×</button>
+            <div className="flex items-center gap-1 shrink-0">
+              <FavStern art="sira" refId={knoten.id} name={knoten.name} />
+              <button className="text-cremedim hover:text-creme text-xl px-1" onClick={() => setAusgewählt(null)}>×</button>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs">
@@ -461,6 +611,18 @@ function SiraGraphInnen() {
 
           {knoten.daten && <p className="text-sm text-goldhell font-mono">{knoten.daten}</p>}
           <p className="text-sm text-creme leading-relaxed">{knoten.zusammenfassung}</p>
+
+          {!["ereignis", "korrektur"].includes(knoten.kategorie) && ego !== knoten.id && (
+            <button
+              className="knopf text-sm w-full"
+              onClick={() => {
+                setEgo(knoten.id);
+                setTimeout(() => setCenter(0, 0, { zoom: 0.8, duration: 500 }), 80);
+              }}
+            >
+              Eigene Mindmap dieser Person öffnen
+            </button>
+          )}
 
           {knoten.wirkungsort && (
             <div>
