@@ -17,6 +17,7 @@ import Quellen from "./pages/Quellen";
 import Willkommen from "./pages/Willkommen";
 import Bibliothek from "./pages/Bibliothek";
 import MeineMaps from "./pages/MeineMaps";
+import SiraBuecher from "./pages/SiraBuecher";
 import Notizen from "./pages/Notizen";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Landing />} />
           <Route path="/sira" element={<SiraPage />} />
+          <Route path="/sira-buecher" element={<SiraBuecher />} />
           <Route path="/propheten" element={<ProphetenPage />} />
           <Route path="/quran" element={<QuranPage />} />
           <Route path="/gelehrte" element={<GelehrtePage />} />

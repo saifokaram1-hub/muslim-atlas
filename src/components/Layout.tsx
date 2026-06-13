@@ -19,6 +19,7 @@ export function Layout() {
 
   const linksAlle = [
     { zu: "/sira", text: "Sira ﷺ" },
+    { zu: "/sira-buecher", text: "Sira-Bücher" },
     { zu: "/propheten", text: "Propheten" },
     { zu: "/quran", text: "Quran" },
     { zu: "/hadith", text: "Hadith" },

@@ -10,6 +10,16 @@ import { useAuth } from "../context/AuthContext";
 import { STUFEN_LABEL, setzeStufe, stufeLokal, ladeStufen, type Wissensstufe } from "../lib/stufe";
 import { knotenform } from "../lib/design";
 import { FavStern } from "./FavStern";
+import { useOverrides, mitPatch } from "../lib/overrides";
+import { AdminEdit, type Feld } from "./AdminEdit";
+
+const ADMIN_FELDER: Feld[] = [
+  { key: "name", label: "Name" },
+  { key: "arabisch", label: "Arabisch" },
+  { key: "daten", label: "Daten / Lebensdaten" },
+  { key: "zusammenfassung", label: "Zusammenfassung", mehrzeilig: true },
+  { key: "quellen", label: "Quellen", liste: true },
+];
 
 const Graph3D = lazy(() => import("./Graph3D"));
 
@@ -118,7 +128,13 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
   const ALLE_KATS = useMemo(() => Object.keys(cfg.kategorien), [cfg]);
   const ALLE_TYPS = useMemo(() => Object.keys(cfg.edgeTypen), [cfg]);
   const ALLE_ERAS = useMemo(() => Object.keys(cfg.eras), [cfg]);
-  const nodeById = useMemo(() => new Map(cfg.nodes.map((n) => [n.id, n])), [cfg]);
+  const { overrides, speichern, zuruecksetzen } = useOverrides(cfg.section);
+  // Admin-Aenderungen ueber die statischen Daten legen
+  const effektiveNodes = useMemo(
+    () => cfg.nodes.map((n) => mitPatch(n, overrides[n.id])),
+    [cfg, overrides],
+  );
+  const nodeById = useMemo(() => new Map(effektiveNodes.map((n) => [n.id, n])), [effektiveNodes]);
   const POSITIONEN = useMemo(() => berechnePositionen(cfg), [cfg]);
 
   const [kats, setKats] = useState<Set<string>>(new Set(ALLE_KATS));
@@ -165,7 +181,7 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
   // Daten für die 3D-Ansicht: dieselbe Ordnung wie 2D (Zeit → X, Kategorie → Y),
   // Epochen als Tiefenebenen (Z); Positionen sind fixiert, nichts verstreut sich.
   const d3Nodes = useMemo(() => {
-    const sichtbare = cfg.nodes.filter(sichtbar);
+    const sichtbare = effektiveNodes.filter(sichtbar);
     if (sichtbare.length === 0) return [];
     const xs = sichtbare.map((n) => POSITIONEN.get(n.id)!.x);
     const minX = Math.min(...xs);
@@ -239,9 +255,10 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
   const [kantenTipp, setKantenTipp] = useState<{ x: number; y: number; text: string } | null>(null);
   const [kontext, setKontext] = useState<{ id: string; x: number; y: number } | null>(null);
 
+  // Performance: nur sichtbare Knoten ins DOM geben
   const nodes: Node[] = useMemo(
     () =>
-      cfg.nodes.map((n) => ({
+      effektiveNodes.filter(sichtbar).map((n) => ({
         id: n.id,
         type: "atlas",
         position: POSITIONEN.get(n.id)!,
@@ -252,40 +269,52 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
           jahrAnzeigen: cfg.jahrAnzeigen,
           skala: skalaFür(n.id),
         } as unknown as Record<string, unknown>,
-        hidden: !sichtbar(n),
         selected: n.id === ausgewählt,
       })),
-    [cfg, POSITIONEN, sichtbar, ausgewählt, skalaFür],
+    [cfg, effektiveNodes, POSITIONEN, sichtbar, ausgewählt, skalaFür],
   );
 
-  const edges: Edge[] = useMemo(
-    () =>
-      cfg.edges.map((e) => {
+  // Nur die Kanten der gewaehlten Person werden animiert (sonst Dauer-Render)
+  const nachbarKanten = useMemo(() => {
+    if (!ausgewählt) return new Set<string>();
+    const s = new Set<string>();
+    for (const e of cfg.edges) if (e.von === ausgewählt || e.nach === ausgewählt) s.add(e.id);
+    return s;
+  }, [cfg, ausgewählt]);
+
+  const edges: Edge[] = useMemo(() => {
+    const sichtbareIds = new Set(effektiveNodes.filter(sichtbar).map((n) => n.id));
+    const grossesNetz = sichtbareIds.size > 70;
+    return cfg.edges
+      .filter((e) => typs.has(e.typ) && sichtbareIds.has(e.von) && sichtbareIds.has(e.nach))
+      .map((e) => {
         const info = cfg.edgeTypen[e.typ] ?? { label: e.typ, farbe: "#777" };
-        const vonOk = sichtbar(nodeById.get(e.von)!);
-        const nachOk = sichtbar(nodeById.get(e.nach)!);
+        const hervor = nachbarKanten.has(e.id);
         return {
           id: e.id,
           source: e.von,
           target: e.nach,
-          label: info.label.length <= 18 ? info.label : undefined,
-          hidden: !typs.has(e.typ) || !vonOk || !nachOk,
-          animated: !info.gestrichelt,
+          label: info.label.length > 18 || (grossesNetz && !hervor) ? undefined : info.label,
+          animated: hervor && !info.gestrichelt,
           data: {
             tipp: `${info.label}: ${nodeById.get(e.von)?.name ?? e.von} → ${nodeById.get(e.nach)?.name ?? e.nach}${e.notiz ? ` (${e.notiz})` : ""}`,
           },
-          style: { stroke: info.farbe, strokeWidth: 1.6, strokeDasharray: info.gestrichelt ? "6 4" : undefined },
+          style: {
+            stroke: info.farbe,
+            strokeWidth: hervor ? 2.4 : 1.5,
+            opacity: ausgewählt && !hervor ? 0.25 : 1,
+            strokeDasharray: info.gestrichelt ? "6 4" : undefined,
+          },
           labelStyle: { fill: "#c9c2b0", fontSize: 10 },
           labelBgStyle: { fill: "#0a1812", opacity: 0.85 },
         };
-      }),
-    [cfg, typs, sichtbar, nodeById],
-  );
+      });
+  }, [cfg, effektiveNodes, typs, sichtbar, nodeById, nachbarKanten, ausgewählt]);
 
   const treffer = useMemo(() => {
     const q = suche.trim().toLowerCase();
     if (q.length < 2) return [];
-    return cfg.nodes
+    return effektiveNodes
       .filter(
         (n) =>
           n.name.toLowerCase().includes(q) ||
@@ -294,7 +323,7 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
           String(n.jahr).includes(q),
       )
       .slice(0, 12);
-  }, [cfg, suche]);
+  }, [effektiveNodes, suche]);
 
   const fokussiere = (n: AtlasNode) => {
     if (!sichtbar(n)) {
@@ -353,6 +382,8 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
           maxZoom={2.5}
           nodesDraggable={false}
           nodesConnectable={false}
+          elevateNodesOnSelect={false}
+          onlyRenderVisibleElements
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#1f3a2e" gap={28} />
@@ -640,6 +671,14 @@ function AtlasGraphInnen({ cfg }: { cfg: AtlasConfig }) {
               </ul>
             </div>
           )}
+
+          <AdminEdit
+            node={knoten as unknown as Record<string, unknown>}
+            felder={cfg.section === "quran" ? ADMIN_FELDER.filter((f) => f.key !== "arabisch") : ADMIN_FELDER}
+            patch={overrides[knoten.id]}
+            speichern={(p) => speichern(knoten.id, p)}
+            zuruecksetzen={() => zuruecksetzen(knoten.id)}
+          />
 
           <div>
             <h3 className="font-semibold text-gold text-sm mb-1">Meine Notiz</h3>

@@ -15,8 +15,19 @@ import { useAuth } from "../context/AuthContext";
 import { setzeStufe, stufeLokal, ladeStufen, type Wissensstufe } from "../lib/stufe";
 import { knotenform } from "../lib/design";
 import { FavStern } from "../components/FavStern";
+import { useOverrides, mitPatch } from "../lib/overrides";
+import { AdminEdit, type Feld } from "../components/AdminEdit";
 
 const Graph3D = lazy(() => import("../components/Graph3D"));
+
+const ADMIN_FELDER: Feld[] = [
+  { key: "name", label: "Name" },
+  { key: "arabisch", label: "Arabisch" },
+  { key: "daten", label: "Lebensdaten / Datum" },
+  { key: "zusammenfassung", label: "Zusammenfassung", mehrzeilig: true },
+  { key: "wirkungsort", label: "Wirkungsorte & Reisen", mehrzeilig: true },
+  { key: "quellen", label: "Quellen", liste: true },
+];
 
 // ---- Layout: Ereignisse als Zeitachse, Personen in Kategorie-Bändern ----
 const BAND_Y: Record<NodeKategorie, number> = {
@@ -112,6 +123,8 @@ const UMFANG_LABEL: Record<number, string> = {
 
 function SiraGraphInnen() {
   const [searchParams] = useSearchParams();
+  const { overrides, speichern, zuruecksetzen } = useOverrides("sira");
+  const effektiv = useCallback((n: SiraNode) => mitPatch(n, overrides[n.id]), [overrides]);
   const sahabaModus = searchParams.get("bereich") === "sahaba";
   const [kats, setKats] = useState<Set<NodeKategorie>>(
     () => new Set(sahabaModus ? SAHABA_KATS : ALLE_KATS),
@@ -160,14 +173,36 @@ function SiraGraphInnen() {
   const [verlauf, setVerlauf] = useState<string[]>([]);
   const [vPos, setVPos] = useState(-1);
 
+  // Schwerpunkt (welche Kategorien stehen im Mittelpunkt) und Quellen-Filter (pro Sira-Buch)
+  const [schwerpunkt, setSchwerpunkt] = useState<string>(() => searchParams.get("schwerpunkt") ?? "alle");
+  const quelle = searchParams.get("quelle"); // z. B. "Ibn Hisham"
+  // Soll der Einstiegs-Auswahldialog gezeigt werden? (nur wenn nichts vorgewaehlt)
+  const [startWahl, setStartWahl] = useState(
+    () => !searchParams.get("schwerpunkt") && !searchParams.get("ego") && !searchParams.get("fokus") && !searchParams.get("quelle"),
+  );
+
+  const schwerpunktKats = useMemo<Set<NodeKategorie> | null>(() => {
+    switch (schwerpunkt) {
+      case "familie": return new Set<NodeKategorie>(["prophet", "familie", "ehefrau", "kind"]);
+      case "gefaehrten": return new Set<NodeKategorie>(["prophet", "gefährte", "ansar", "später_konvertit"]);
+      case "gegner": return new Set<NodeKategorie>(["prophet", "gegner", "verbündeter"]);
+      case "ereignisse": return new Set<NodeKategorie>(["prophet", "ereignis", "korrektur"]);
+      default: return null;
+    }
+  }, [schwerpunkt]);
+
   const sichtbar = useCallback(
     (n: SiraNode) => {
       if (egoNachbarn) return egoNachbarn.has(n.id);
+      if (quelle && n.id !== "muhammad" && !(n.quellen ?? []).some((q) => q.toLowerCase().includes(quelle.toLowerCase()))) return false;
+      if (schwerpunktKats && !schwerpunktKats.has(n.kategorie)) return false;
+      // Shuhada-Schwerpunkt: nur Gefallene (über gefallen_in-Kante) plus der Prophet ﷺ
+      if (schwerpunkt === "shuhada" && n.id !== "muhammad" && !siraEdges.some((e) => e.typ === "gefallen_in" && e.von === n.id)) return false;
       if (!kats.has(n.kategorie) || !eras.has(n.era) || n.jahr < jahrVon || n.jahr > jahrBis) return false;
       if (NAEHE_KATS.has(n.kategorie) && (n.nähe ?? 2) > umfang) return false;
       return true;
     },
-    [kats, eras, jahrVon, jahrBis, umfang, egoNachbarn],
+    [kats, eras, jahrVon, jahrBis, umfang, egoNachbarn, schwerpunktKats, schwerpunkt, quelle],
   );
 
   // Radiales Layout im Ego-Modus: die Person in der Mitte, Verbindungen im Kreis
@@ -222,42 +257,58 @@ function SiraGraphInnen() {
   const zurück = () => { if (vPos > 0) { setVPos(vPos - 1); wähle(verlauf[vPos - 1], true); } };
   const vor = () => { if (vPos < verlauf.length - 1) { setVPos(vPos + 1); wähle(verlauf[vPos + 1], true); } };
 
-  const nodes: Node[] = useMemo(
-    () =>
-      siraNodes.map((n) => ({
-        id: n.id,
-        type: n.kategorie === "ereignis" || n.kategorie === "korrektur" ? "ereignis" : "person",
-        position: posFür(n.id),
-        data: { ...n, skala: skalaFür(n.id) } as unknown as Record<string, unknown>,
-        hidden: !sichtbar(n),
-        selected: n.id === ausgewählt,
-      })),
-    [sichtbar, ausgewählt, posFür, skalaFür],
-  );
+  // Performance: nur SICHTBARE Knoten ins DOM geben (versteckte werden weggelassen,
+  // nicht nur per hidden-Flag ausgeblendet). Bei sehr vielen sichtbaren Knoten werden
+  // Labels ausgeblendet, das spart spuerbar Rechenzeit.
+  const nodes: Node[] = useMemo(() => {
+    const sichtbare = siraNodes.filter(sichtbar);
+    return sichtbare.map((n) => ({
+      id: n.id,
+      type: n.kategorie === "ereignis" || n.kategorie === "korrektur" ? "ereignis" : "person",
+      position: posFür(n.id),
+      data: { ...effektiv(n), skala: skalaFür(n.id) } as unknown as Record<string, unknown>,
+      selected: n.id === ausgewählt,
+    }));
+  }, [sichtbar, ausgewählt, posFür, skalaFür, effektiv]);
 
-  const edges: Edge[] = useMemo(
-    () =>
-      siraEdges.map((e) => {
+  // Nachbarn der gewaehlten Person — nur deren Kanten werden animiert (Performance!)
+  const nachbarKanten = useMemo(() => {
+    if (!ausgewählt) return new Set<string>();
+    const s = new Set<string>();
+    for (const e of siraEdges) if (e.von === ausgewählt || e.nach === ausgewählt) s.add(e.id);
+    return s;
+  }, [ausgewählt]);
+
+  const edges: Edge[] = useMemo(() => {
+    const sichtbareIds = new Set(siraNodes.filter(sichtbar).map((n) => n.id));
+    const grossesNetz = sichtbareIds.size > 70;
+    return siraEdges
+      .filter((e) => typs.has(e.typ) && sichtbareIds.has(e.von) && sichtbareIds.has(e.nach))
+      .map((e) => {
         const info = EDGE_INFO[e.typ];
-        const vonOk = sichtbar(nodeById.get(e.von)!);
-        const nachOk = sichtbar(nodeById.get(e.nach)!);
+        const hervor = nachbarKanten.has(e.id);
         return {
           id: e.id,
           source: e.von,
           target: e.nach,
-          label: e.typ === "teilnahme" ? undefined : info.label,
-          hidden: !typs.has(e.typ) || !vonOk || !nachOk,
-          animated: !info.gestrichelt,
+          // Labels nur bei kleinem Netz oder an der gewaehlten Person
+          label: e.typ === "teilnahme" || (grossesNetz && !hervor) ? undefined : info.label,
+          // Animation NUR an der gewaehlten Person — sonst statisch (kein Dauer-Render)
+          animated: hervor && !info.gestrichelt,
           data: {
             tipp: `${info.label}: ${nodeById.get(e.von)?.name ?? e.von} → ${nodeById.get(e.nach)?.name ?? e.nach}${e.notiz ? ` (${e.notiz})` : ""}`,
           },
-          style: { stroke: info.farbe, strokeWidth: 1.6, strokeDasharray: info.gestrichelt ? "6 4" : undefined },
+          style: {
+            stroke: info.farbe,
+            strokeWidth: hervor ? 2.4 : 1.5,
+            opacity: ausgewählt && !hervor ? 0.25 : 1,
+            strokeDasharray: info.gestrichelt ? "6 4" : undefined,
+          },
           labelStyle: { fill: "#c9c2b0", fontSize: 10 },
           labelBgStyle: { fill: "#0a1812", opacity: 0.85 },
         };
-      }),
-    [typs, sichtbar],
-  );
+      });
+  }, [typs, sichtbar, nachbarKanten, ausgewählt]);
 
   const treffer = useMemo(() => {
     const q = suche.trim().toLowerCase();
@@ -324,10 +375,20 @@ function SiraGraphInnen() {
       .map((e) => ({ source: e.von, target: e.nach, color: EDGE_INFO[e.typ].farbe }));
   }, [d3Nodes, typs]);
 
-  const knoten = ausgewählt ? nodeById.get(ausgewählt) : null;
+  const rohKnoten = ausgewählt ? nodeById.get(ausgewählt) : null;
+  const knoten = rohKnoten ? effektiv(rohKnoten) : null;
   const verbindungen = ausgewählt
     ? siraEdges.filter((e) => e.von === ausgewählt || e.nach === ausgewählt)
     : [];
+
+  const SCHWERPUNKTE = [
+    { id: "alle", label: "Die ganze Sira", icon: "🕌", text: "Alles auf einer Karte: Familie, Gefährten, Gegner, Ereignisse." },
+    { id: "familie", label: "Familie & Stammbaum", icon: "🌳", text: "Eltern, Großvater, Onkel, Ehefrauen und Kinder des Propheten ﷺ." },
+    { id: "gefaehrten", label: "Die Gefährten (Sahaba)", icon: "🤝", text: "Muhadschirun, Ansar, spätere Konvertiten und ihre Verbindungen." },
+    { id: "gegner", label: "Gegner & Verbündete", icon: "⚔️", text: "Widersacher in Mekka und Medina, dazu schützende Nichtmuslime." },
+    { id: "shuhada", label: "Die Märtyrer (Shuhada)", icon: "🌹", text: "Wer fiel in welcher Schlacht — Badr, Uhud, Mu'tah und mehr." },
+    { id: "ereignisse", label: "Die Ereignisse (Chronik)", icon: "📜", text: "Die Stationen von der Geburt 570 bis zum Tod 632, chronologisch." },
+  ];
 
   return (
     <div
@@ -336,6 +397,52 @@ function SiraGraphInnen() {
       style={{ height: vollbild ? "100vh" : "calc(100vh - 3.5rem)", background: "var(--color-grund)" }}
     >
     <div className="relative flex-1 min-h-0">
+      {/* Visueller Einstieg: Schwerpunkt waehlen */}
+      {startWahl && !ego && (
+        <div className="absolute inset-0 z-30 overflow-y-auto bg-grund/95 backdrop-blur muster">
+          <div className="mx-auto max-w-4xl px-4 py-10">
+            <h2 className="font-serif text-3xl gold-text text-center">Womit möchtest du beginnen?</h2>
+            <p className="text-cremedim text-center mt-2 text-sm">
+              Wähle einen Schwerpunkt — du kannst jederzeit umschalten und im Filter tiefer gehen.
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+              {SCHWERPUNKTE.map((s) => (
+                <button
+                  key={s.id}
+                  className="karte karte-aktiv p-5 text-left"
+                  onClick={() => { setSchwerpunkt(s.id); setStartWahl(false); }}
+                >
+                  <div className="text-3xl">{s.icon}</div>
+                  <h3 className="font-serif text-lg text-gold mt-2">{s.label}</h3>
+                  <p className="text-xs text-cremedim mt-1 leading-relaxed">{s.text}</p>
+                </button>
+              ))}
+            </div>
+            <div className="mt-8 karte p-4">
+              <p className="text-sm font-semibold text-gold mb-2">Wie viel möchtest du sehen?</p>
+              <div className="flex flex-wrap gap-2">
+                {([1, 2, 3] as number[]).map((w) => (
+                  <button
+                    key={w}
+                    className={`px-3 py-1.5 rounded-lg border text-sm ${umfang === w ? "border-gold text-gold bg-gold/10" : "border-gold/25 text-cremedim hover:border-gold/50"}`}
+                    onClick={() => { setUmfang(w); setzeStufe("sira", w as Wissensstufe, user?.id); }}
+                  >
+                    {UMFANG_LABEL[w]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-goldhell mt-2">
+                Die Stufen ordnen nur nach Bekanntheit für den Lerneinstieg — im Rang sind die Sahaba
+                allesamt die beste Generation (radiyallahu anhum).
+              </p>
+            </div>
+            <button className="knopf knopf-gold w-full mt-6" onClick={() => setStartWahl(false)}>
+              Karte öffnen
+            </button>
+          </div>
+        </div>
+      )}
+
       {modus3d ? (
         <Suspense fallback={<p className="absolute inset-0 flex items-center justify-center text-cremedim">Lade 3D-Ansicht…</p>}>
           <Graph3D nodes={d3Nodes} links={d3Links} onKnoten={(id) => setAusgewählt(id)} />
@@ -368,9 +475,11 @@ function SiraGraphInnen() {
         maxZoom={2.5}
         nodesDraggable={false}
         nodesConnectable={false}
+        elevateNodesOnSelect={false}
+        onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#1f3a2e" gap={28} />
+        <Background color="#1f3a2e" gap={28} variant={"dots" as never} />
         <Controls position="bottom-left" showInteractive={false} />
         <MiniMap
           position="bottom-right"
@@ -386,9 +495,21 @@ function SiraGraphInnen() {
       {/* Ego-Banner: Mindmap einer einzelnen Person */}
       {ego && nodeById.get(ego) && (
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 karte px-4 py-1.5 flex items-center gap-3 text-sm shadow-xl">
-          <span className="text-gold font-semibold">Mindmap: {nodeById.get(ego)!.name}</span>
+          <span className="text-gold font-semibold">Mindmap: {effektiv(nodeById.get(ego)!).name}</span>
           <button className="text-cremedim underline hover:text-creme" onClick={() => { setEgo(null); setAusgewählt(null); }}>
             Zur großen Karte
+          </button>
+        </div>
+      )}
+
+      {/* Schwerpunkt- / Quellen-Banner */}
+      {!ego && !startWahl && (schwerpunkt !== "alle" || quelle) && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 karte px-4 py-1.5 flex items-center gap-3 text-sm shadow-xl">
+          <span className="text-gold font-semibold">
+            {quelle ? `Quelle: ${quelle}` : SCHWERPUNKTE.find((s) => s.id === schwerpunkt)?.label}
+          </span>
+          <button className="text-cremedim underline hover:text-creme" onClick={() => setStartWahl(true)}>
+            Schwerpunkt wechseln
           </button>
         </div>
       )}
@@ -671,6 +792,14 @@ function SiraGraphInnen() {
               </ul>
             </div>
           )}
+
+          <AdminEdit
+            node={knoten as unknown as Record<string, unknown>}
+            felder={ADMIN_FELDER}
+            patch={overrides[knoten.id]}
+            speichern={(p) => speichern(knoten.id, p)}
+            zuruecksetzen={() => zuruecksetzen(knoten.id)}
+          />
 
           <div>
             <h3 className="font-semibold text-gold text-sm mb-1">Meine Notiz</h3>
